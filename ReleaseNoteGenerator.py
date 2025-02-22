@@ -1,7 +1,9 @@
 import csv
+import argparse
 
 from RenderToHTML import RenderToHTML
 from ParseGitLog import get_git_log
+
 
 # Ingest the content of a JQL query (for all issues in a release) from a CSV file
 class JiraExportQueryEntry:
@@ -67,9 +69,24 @@ class ConsolidatedEntry:
 
 def main():
 
-    #TODO: these need to be input as a parameter
-    jiraExportFile = "ExportedFromJira.csv"
+    #
+    #Parse the command line arguments
+    #
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-j','--jira', type=str, help='Location of a CSV file that was exported from a Jira Query', required=True)
+    parser.add_argument('-l','--repo_loc', type=str, help='Location of a git repo to search history in', required=True)
+    parser.add_argument('-r','--repo', type=str, help='The name of the git repo in which to search the history', required=True)
+    parser.add_argument('-s','--source', type=str, help='Git tag of starting range to search in git', required=True)
+    parser.add_argument('-d','--dest', type=str, help='Git tag of destination to search in git', required=True)
 
+    args = parser.parse_args()
+    argsDict = vars(args)
+
+    jiraExportFile = argsDict['jira']
+    sourceTag = argsDict['source']
+    destTag = argsDict['dest']
+    repoLocation = argsDict['repo_loc']
+    repo = argsDict['repo']
 
     jiraDictionary = {}
     consolidatedDictionary = {}    
@@ -89,7 +106,7 @@ def main():
             jiraDictionary[entry.IssueKey] = entry
 
     #Fetch the content of a parsed git log
-    gitDictionary = get_git_log("/Users/rbg634/", "pss", "V25.1.0-alpha1", "V25.1.1.13")
+    gitDictionary = get_git_log(repoLocation, repo, sourceTag, destTag)
  
     #
     # Find all the issues that are listed in Jira, and cross reference these against the issues found in the Git commit(s)
@@ -181,12 +198,7 @@ def main():
                     otherList.append(entry)            
 
     # Render the content to a HTML file
-
-    #TODO: pipe through the version info from the command line.    
-    version = "25.1.1.21"
-    previousVersion = "24.4.1.5"
-
-    RenderToHTML("Output.html", version, previousVersion, False, epicList, storyList, defectList, supportList, otherList)            
+    RenderToHTML("Output.html", destTag, sourceTag, False, epicList, storyList, defectList, supportList, otherList)            
 
 if __name__ == "__main__":
     main() 
