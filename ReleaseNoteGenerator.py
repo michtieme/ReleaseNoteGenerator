@@ -8,6 +8,7 @@ import re
 import os
 
 from RenderToHTML import RenderToHTML
+from ParseGitLog import get_git_log
 
 #
 # GitPython
@@ -96,21 +97,7 @@ class ConsolidatedEntry:
         #self.actual_release_note = actual_release_note
  
     def __str__(self):
-        return self.foundInJira + " " + self.foundInGit + " " + self.jiraComment + " " + self.gitComment + " " + self.proposed_release_note + " " # + self.actual_release_note
-    
-#
-# Class to hold a git commit message of the form: <hash> <jira_id> <comment>
-#
-class gitCommitMessage:
-
-    def __init__(self, hash, jiraId, comment):
-        self.hash = hash
-        self.jiraId = jiraId
-        self.comment = comment
- 
-    def __str__(self):
-        return "[" + self.hash + "],[" + self.jiraId + "],[" + self.comment + "]"
-
+        return self.foundInJira + " " + self.foundInGit + " " + self.jiraComment + " " + self.gitComment + " " + self.proposed_release_note + " " # + self.actual_release_note    
 
 def main():
 
@@ -160,7 +147,11 @@ def main():
     # Render the content to a HTML file
 
     #TODO: pipe through the version info from the command line.    
-    RenderToHTML("Output.html", version, previousVersion, False, epicList, storyList, defectList, supportList, otherList)
+    #RenderToHTML("Output.html", version, previousVersion, False, epicList, storyList, defectList, supportList, otherList)
+
+    #Fetch the content of the git log
+    print("Fetching the git log")
+    get_git_log("/Users/rbg634/", "pss", "V25.1.0-alpha1", "V25.1.1.13")
 
     # Retrieve the content of a git log between two tags
     #get_git_log("V25.1.0-alpha1", "V25.1.1.13")
@@ -168,6 +159,9 @@ def main():
     #read_and_parse_git_commit_line()
 
     #parse_csv_git_log()
+
+if __name__ == "__main__":
+    main()    
 
 ''''
     #
@@ -220,7 +214,7 @@ def main():
 #
 # Git schenanigans. This code will find the git commits between two tags
 #
-
+'''
 def get_git_log(source, destination):
 
     #Set the local folder to the PSS repo (hardcoded to my PSS repo)
@@ -311,7 +305,6 @@ def run_regex():
     string = "aaaaaaa V500-1234 some message"
     match = re.findall(regex, string)  
     print(match)
-        
+'''       
 
-if __name__ == "__main__":
-    main()
+
