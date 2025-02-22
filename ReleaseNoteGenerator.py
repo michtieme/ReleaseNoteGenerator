@@ -86,7 +86,7 @@ def main():
 
         for row in csvReader:        
             entry = JiraExportQueryEntry(**row)
-            jiraDictionary[entry.IssueId] = entry
+            jiraDictionary[entry.IssueKey] = entry
 
     #Fetch the content of a parsed git log
     gitDictionary = get_git_log("/Users/rbg634/", "pss", "V25.1.0-alpha1", "V25.1.1.13")
