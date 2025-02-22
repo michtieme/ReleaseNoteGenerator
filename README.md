@@ -1,2 +1,2 @@
 # ReleaseNoteGenerator
-Some python to create release notes
+Some python code to create release notes. 
