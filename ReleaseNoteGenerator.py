@@ -1,20 +1,7 @@
-
 import csv
-
-#For calling Git commands
-import subprocess
-import re
-
-import os
 
 from RenderToHTML import RenderToHTML
 from ParseGitLog import get_git_log
-
-#
-# GitPython
-#
-import git
-from git import Repo
 
 # Ingest the content of a JQL query (for all issues in a release) from a CSV file
 class JiraExportQueryEntry:
