@@ -64,24 +64,12 @@ class ConsolodatedDataImport:
     def __str__(self):
         return self.JiraId + " " + self.IssueType + " " + self.ActualReleaseNote    
     
-class GitCommitEntry:
-
-# CSV Header:    
-# hash, issue_id, summary
-
-    def __init__(self, **kwargs):
-        self.hash = kwargs.get('hash')
-        self.jiraId = kwargs.get('jiraId')
-        self.comment = kwargs.get('comment')
-
-    def __str__(self):
-        return self.hash + " " + self.Issue_id + " " + self.Summary    
+ 
 
 #
 # Dictionarys for Jira and Git to consolidate the two
 #
 jiraDictionary = {}
-gitDictionary = {}
 consolidatedDictionary = {}
 
 
@@ -151,17 +139,8 @@ def main():
 
     #Fetch the content of the git log
     print("Fetching the git log")
-    get_git_log("/Users/rbg634/", "pss", "V25.1.0-alpha1", "V25.1.1.13")
-
-    # Retrieve the content of a git log between two tags
-    #get_git_log("V25.1.0-alpha1", "V25.1.1.13")
-
-    #read_and_parse_git_commit_line()
-
-    #parse_csv_git_log()
-
-if __name__ == "__main__":
-    main()    
+    gitDictionary = get_git_log("/Users/rbg634/", "pss", "V25.1.0-alpha1", "V25.1.1.13")
+ 
 
 ''''
     #
@@ -208,103 +187,8 @@ if __name__ == "__main__":
 
             #Write out the entry to the CSV file
             commitWriter.writerow([item, entry.foundInJira, entry.foundInGit, entry.jiraComment, entry.gitComment, entry.proposed_release_note, entry.actual_release_note]) 
-'''
+'''  
 
-
-#
-# Git schenanigans. This code will find the git commits between two tags
-#
-'''
-def get_git_log(source, destination):
-
-    #Set the local folder to the PSS repo (hardcoded to my PSS repo)
-    repoFolder = "/Users/rbg634/"
-    repoDir = os.path.join(os.path.abspath(repoFolder), 'pss')
-
-    #Set the repo
-    repo = git.Repo(repoDir)
-
-    #
-    # Equivalent to: git log --oneline --nomerges $source..$dest
-    #
-    logs = repo.git.log("--oneline", "--no-merges", source + ".." + destination)
-    lines = logs.splitlines()
-
-    # Write the content of the commite messages into a CSV file of the form: <Hash>, <Jira_id>, <comment>
-    with open('commitMessages.csv', 'w', newline='') as csvfile:
-        commitWriter = csv.writer(csvfile, delimiter=',')
-        commitWriter.writerow(['Hash', 'JiraId', 'Comment'])
-
-        #Parse the git commit message to chunk into [hash, Jira number, comment]
-        for line in lines:
-
-            commitLine = parse_git_commit_line(line)
-
-            print(commitLine)
-
-            print("---------------------------------------------")
-
-            #Developers like to add ':' next to jira id's, which throws off the ability to find the jira. Replace these with whitespace
-            formattedLine = line.replace(":", " ")
-
-            #Split the string on whitespace producing: [Hash, JiraId, comment]
-            splittedString = formattedLine.split(" ", 2)          
-
-            if(len(splittedString) > 2):
-
-                #
-                # Need to validate that the jira id is formatted correctly
-                #
-                jiraId = line.split("-", 2)
-                if(len(jiraId) < 2):
-                    print("Warning: the jira id is illformed, this entry shall be ignored:", line)
-                
-                commitMessage = gitCommitMessage(splittedString[0], splittedString[1], splittedString[2])
-                commitWriter.writerow([commitMessage.hash, commitMessage.jiraId, commitMessage.comment])
-
-                #Add the git commit entry into the git Dictionary, keyed on the Jira issue id
-                gitDictionary[commitMessage.jiraId] = commitMessage
-            else:
-                print("Error parsing: not enough string to split", line)
-
-                #These commit messages will be ignored.
-
-def read_and_parse_git_commit_line():
-
-    file = open('gitLogs_bp_to_18.csv', 'r')
-    copyFile = open('gitLogs_bp_to_18_formatting.csv', 'w')
-    errorFile = open('gitLog_errors.csv', 'w')
-
-
-    for line in file:
-        splittedString = line.split(" ", 2)
-
-        if(len(splittedString) < 3):
-            print("Error on line, not enough whitespace to split ", line)
-            errorFile.write(line)
-        else:
-            copyLine = splittedString[0] + "," + splittedString[1] + "," + splittedString[2]
-            copyFile.write(copyLine)
-
-
-def parse_csv_git_log():
-
-    #
-    # Input: A CSV file from a JQL query that is exported from Jira.
-    #
-    with open('gitLogs_bp_to_18_Final.csv', 'r') as inputCSVFile:
-        csvReader = csv.DictReader(inputCSVFile, delimiter=",")
-
-        for row in csvReader:
-            entry = GitCommitEntry(**row)
-            gitDictionary[entry.jiraId] = entry;
-
-
-def run_regex():
-    regex = r"([a-f0-9]{6,8}) ([a-zA-Z0-9]+-[0-9]+)*.+"
-    string = "aaaaaaa V500-1234 some message"
-    match = re.findall(regex, string)  
-    print(match)
-'''       
-
+if __name__ == "__main__":
+    main() 
 
