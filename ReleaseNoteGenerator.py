@@ -75,7 +75,7 @@ class GitCommitEntry:
         return self.hash + " " + self.Issue_id + " " + self.Summary    
 
 #
-# Dictionarys for Jira and Git, and to consolidate the two
+# Dictionarys for Jira and Git to consolidate the two
 #
 jiraDictionary = {}
 gitDictionary = {}
@@ -112,12 +112,17 @@ class gitCommitMessage:
 
 def main():
 
+    #TODO: these need to be input as a parameter
+    releaseNoteFile = "releaseNotes_for_25_1.csv"
+    version = "25.1.1.21"
+    previousVersion = "24.4.1.5"
+
     #
     # Input: A CSV file from a JQL query that is exported from Jira.
     #
-    with open('releaseNotes_for_25_1.csv', 'r') as inputCSVFile:
+    with open(releaseNoteFile, 'r') as inputCSVFile:
         csvReader = csv.DictReader(inputCSVFile)
-
+        
         epicList = []
         defectList = []
         storyList = []
@@ -153,7 +158,7 @@ def main():
     # Render the content to a HTML file
 
     #TODO: pipe through the version info from the command line.    
-    RenderToHTML("25.1.1.21", "24.4.1.5", False, epicList, storyList, defectList, supportList, otherList)
+    RenderToHTML(version, previousVersion, False, epicList, storyList, defectList, supportList, otherList)
 
     # Retrieve the content of a git log between two tags
     #get_git_log("V25.1.0-alpha1", "V25.1.1.13")
