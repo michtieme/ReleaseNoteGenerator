@@ -31,49 +31,136 @@ class JiraExportQueryEntry:
     def __str__(self):
         return self.IssueKey + " " + self.IssueType + " " + self.Summary
     
+# Import the modified content of the release notes for converting to HTML
+class ReleaseNoteDataImport:
+
+# CSV Header:    
+# Issue_Type,Issue_key,Issue_id,Parent_id,Summary,Resolution,Resolved,Closed_Date),ID,Assignee,Reporter,Priority,Created,Release_Note,Status,Fix_Version,Proposed_Release_Notes,Actual_Release_Note,
+
+    def __init__(self, **kwargs):
+        self.JiraId = kwargs.get('JiraId')
+        self.IssueType = kwargs.get('IssueType')        
+        self.InJira = kwargs.get('InJira')
+        self.InGit = kwargs.get('InGit')
+        self.JiraComment = kwargs.get('Jira Comment')
+        self.GitComment = kwargs.get('Git Comment')
+        self.ProposedReleaseNote = kwargs.get('ProposedReleaseNote')
+        self.Take = kwargs.get('Take')
+        self.ActualReleaseNote = kwargs.get('ActualReleaseNote')
+
+    def __str__(self):
+        return self.JiraId + " " + self.IssueType + " " + self.JiraComment + " " + self.ActualReleaseNote    
+        
+    
 class ConsolidatedEntry:
 
-    def __init__(self, foundInJira, foundInGit, jiraComment, gitComment, proposed_release_note):
+    def __init__(self, foundInJira, foundInGit, jiraComment, issueType, gitComment, proposed_release_note):
         self.foundInJira = foundInJira
         self.foundInGit = foundInGit
         self.jiraComment = jiraComment
+        self.issueType = issueType
         self.gitComment = gitComment
         self.proposed_release_note = proposed_release_note
  
     def __str__(self):
-        return self.foundInJira + " " + self.foundInGit + " " + self.jiraComment + " " + self.gitComment + " " + self.proposed_release_note
+        return self.foundInJira + " " + self.foundInGit + " " + self.jiraComment + " " + self.issueType + " " + self.gitComment + " " + self.proposed_release_note
 
 def main():
 
     #TODO: these need to be input as a parameter
     jiraExportFile = "ExportedFromJira.csv"
-    version = "25.1.1.21"
-    previousVersion = "24.4.1.5"
+
 
     jiraDictionary = {}
     consolidatedDictionary = {}    
 
     #
-    # Input: A CSV file from a JQL query that is exported from Jira.
+    # import the data from a JQL query that has been exported from Jira to a CSV
     #
     with open(jiraExportFile, 'r') as inputCSVFile:
+
         csvReader = csv.DictReader(inputCSVFile, delimiter="^")
 
         #TODO: Handle errors reading the CSV
-        
-        epicList = []
-        defectList = []
-        storyList = []
-        spikeList = []
-        subTaskList = []
-        dependencyList = []
-        supportList = []
-        otherList = []
+        #         
+
+        for row in csvReader:        
+            entry = JiraExportQueryEntry(**row)
+            jiraDictionary[entry.IssueId] = entry
+
+    #Fetch the content of a parsed git log
+    gitDictionary = get_git_log("/Users/rbg634/", "pss", "V25.1.0-alpha1", "V25.1.1.13")
+ 
+    #
+    # Find all the issues that are listed in Jira, and cross reference these against the issues found in the Git commit(s)
+    #
+    for item in jiraDictionary:
+
+        # Assume we can't find the entry in the git commit messages
+        entry = ConsolidatedEntry("Yes", "No", jiraDictionary[item].Summary, jiraDictionary[item].IssueType, "", jiraDictionary[item].ProposedReleaseNote)
+
+        if item in gitDictionary:
+            # If we find the issue in the GitDirectory mark it as found with the comment
+            commitMessage = gitDictionary[item]
+
+            entry.foundInGit = "Yes"
+            entry.gitComment = commitMessage.comment
+
+        consolidatedDictionary[item] = entry
+
+    #
+    # Find all the issues that are in Git, and determine if we found them in jira dictionary
+    #         
+    for item in gitDictionary:
+        entry = ConsolidatedEntry("No", "Yes", "", "", gitDictionary[item].comment, "")
+
+        print("Issues in Git", entry)
+
+        #Entries that appear in both the gitDictionary and the jiraDictaion
+        if item in jiraDictionary:
+            entry.foundInJira = "Yes"
+            entry.jiraComment = jiraDictionary[item].Summary
+            entry.issueType = jiraDictionary[item].IssueType
+            entry.proposed_release_note = jiraDictionary[item].ProposedReleaseNote
+
+        consolidatedDictionary[item] = entry            
+
+    # Write all the consolidated data to a CSV file. This forms the basis of the release notes for review
+    with open('consolidated_database.csv', 'w', newline='') as csvfile:
+        commitWriter = csv.writer(csvfile, delimiter=',')
+        commitWriter.writerow(['JiraId', 'IssueType', 'InJira', 'InGit', 'Jira Comment', 'Git comment', 'ProposedReleaseNote'])
+
+        for item in consolidatedDictionary:
+            entry = consolidatedDictionary[item]
+
+            #Write out the entry to the CSV file
+            commitWriter.writerow([item, entry.issueType, entry.foundInJira, entry.foundInGit, entry.jiraComment, entry.gitComment, entry.proposed_release_note]) 
+
+    #
+    # Read in the sanitised CSV file that has been exported from a Google Sheet. This determines what is rendered to HTML
+    #
+    releaseNotes= "ImportedFromGoogleSheets.csv"
+
+    epicList = []
+    defectList = []
+    storyList = []
+    spikeList = []
+    subTaskList = []
+    dependencyList = []
+    supportList = []
+    otherList = []
+
+    with open(releaseNotes, 'r') as exportedCSVFile:
+        csvReader = csv.DictReader(exportedCSVFile, delimiter="^")
+
+        #TODO handle errors when reading the CSV file
 
         for row in csvReader:
-            entry = JiraExportQueryEntry(**row)
 
-            jiraDictionary[entry.IssueId] = entry
+            print(row)
+            entry = ReleaseNoteDataImport(**row)
+
+            print(entry)
 
             match entry.IssueType:
                 case "Defect": 
@@ -91,60 +178,15 @@ def main():
                 case "Spike":
                     spikeList.append(entry) 
                 case _:
-                    otherList.append(entry)
-
-    #Fetch the content of the git log
-    gitDictionary = get_git_log("/Users/rbg634/", "pss", "V25.1.0-alpha1", "V25.1.1.13")
- 
-    #
-    # Find all the issues that are listed in Jira, and cross reference these against the issues found in the Git commit(s)
-    #
-    for item in jiraDictionary:
-
-        # Assume we can't find the entry in the git commit messages
-        entry = ConsolidatedEntry("Yes", "No", jiraDictionary[item].Summary, "", jiraDictionary[item].ProposedReleaseNote)
-
-        if item in gitDictionary:
-            # If we find the issue in the GitDirectory mark it as found with the comment
-            commitMessage = gitDictionary[item]
-
-            entry.foundInGit = "Yes"
-            entry.gitComment = commitMessage.comment
-
-        consolidatedDictionary[item] = entry
-
-    #
-    # Find all the issues that are in Git, and determine if we found them in jira dictionary
-    #         
-    for item in gitDictionary:
-        entry = ConsolidatedEntry("No", "Yes", "", gitDictionary[item].comment, "")
-
-        print("Issues in Git", entry)
-
-        #Entries that appear in both the gitDictionary and the jiraDictaion
-        if item in jiraDictionary:
-            entry.foundInJira = "Yes"
-            entry.jiraComment = jiraDictionary[item].Summary
-            entry.proposed_release_note = jiraDictionary[item].ProposedReleaseNote
-
-        consolidatedDictionary[item] = entry            
-
-    # Write all the consolidated data to a CSV file with form <Jira_id>, <in_jira>, <in_git>, <jira summary>, <git comment>
-    with open('consolidated_database.csv', 'w', newline='') as csvfile:
-        commitWriter = csv.writer(csvfile, delimiter=',')
-        commitWriter.writerow(['JiraId', 'InJira', 'InGit', 'Jira Comment', 'Git comment', 'ProposedReleaseNote'])
-
-        for item in consolidatedDictionary:
-            entry = consolidatedDictionary[item]
-
-            #Write out the entry to the CSV file
-            commitWriter.writerow([item, entry.foundInJira, entry.foundInGit, entry.jiraComment, entry.gitComment, entry.proposed_release_note]) 
-
+                    otherList.append(entry)            
 
     # Render the content to a HTML file
 
     #TODO: pipe through the version info from the command line.    
-    #RenderToHTML("Output.html", version, previousVersion, False, epicList, storyList, defectList, supportList, otherList)            
+    version = "25.1.1.21"
+    previousVersion = "24.4.1.5"
+
+    RenderToHTML("Output.html", version, previousVersion, False, epicList, storyList, defectList, supportList, otherList)            
 
 if __name__ == "__main__":
     main() 
