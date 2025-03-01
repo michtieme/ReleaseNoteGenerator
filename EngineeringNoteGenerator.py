@@ -1,74 +1,24 @@
 import csv
 import argparse
 
-from RenderToHTML import RenderToHTML
+from RenderToHTML import render_to_html
 from ParseGitLog import get_git_log
 
 from NoteType import ReleaseNoteType
 
-
-# Ingest the content of a JQL query (for all issues in a release) from a CSV file
-class JiraExportQueryEntry:
-
-# CSV Header:    
-#Issue Type^Issue key^Issue id^Parent id^Summary^Resolution^Resolved^Custom field (Closed Date)^Custom field (ID)^Assignee^Reporter^Priority^Created^Status^Fix Version/s^Custom field (Proposed Release Notes)
-#Note this CSV export uses the '^' delimiter to avoid having to worry about handling ',' in comment fields
-
-    def __init__(self, **kwargs):
-        self.IssueType = kwargs.get('Issue Type')
-        self.IssueKey = kwargs.get('Issue key')
-        self.IssueId = kwargs.get('Issue id')
-        self.Parent = kwargs.get('Parent id')
-        self.Summary = kwargs.get('Summary')
-        self.Resolution = kwargs.get('Resolution')
-        self.Resolved = kwargs.get('Resolved')
-        self.Closed_Date = kwargs.get('Custom field (Closed Date)')
-        self.ID = kwargs.get('Custom field (ID)')
-        self.Assignee = kwargs.get('Assignee')
-        self.Reporter = kwargs.get('Reporter')
-        self.Priority = kwargs.get('Priority')
-        self.Created = kwargs.get('Created')
-        self.Status = kwargs.get('Status')
-        self.FixVersion = kwargs.get('Fix Version/s')
-        self.ProposedReleaseNote = kwargs.get('Custom field (Proposed Release Notes)')
-
-    def __str__(self):
-        return self.IssueKey + " " + self.IssueType + " " + self.Summary
-    
-# Import the modified content of the release notes for converting to HTML
-class ReleaseNoteDataImport:
-
-# CSV Header:    
-# Issue_Type,Issue_key,Issue_id,Parent_id,Summary,Resolution,Resolved,Closed_Date),ID,Assignee,Reporter,Priority,Created,Release_Note,Status,Fix_Version,Proposed_Release_Notes,Actual_Release_Note,
-
-    def __init__(self, **kwargs):
-        self.JiraId = kwargs.get('JiraId')
-        self.IssueType = kwargs.get('IssueType')        
-        self.InJira = kwargs.get('InJira')
-        self.InGit = kwargs.get('InGit')
-        self.JiraComment = kwargs.get('Jira Comment')
-        self.GitComment = kwargs.get('Git Comment')
-        self.ProposedReleaseNote = kwargs.get('ProposedReleaseNote')
-        self.Take = kwargs.get('Take')
-        self.ActualReleaseNote = kwargs.get('ActualReleaseNote')
-
-    def __str__(self):
-        return self.JiraId + " " + self.IssueType + " " + self.JiraComment + " " + self.ActualReleaseNote    
-        
-    
 class ConsolidatedEntry:
 
-    def __init__(self, jiraId, foundInJira, foundInGit, jiraComment, issueType, gitComment, release_note):
-        self.jiraId = jiraId
-        self.foundInJira = foundInJira
-        self.foundInGit = foundInGit
-        self.jiraComment = jiraComment
-        self.issueType = issueType
-        self.gitComment = gitComment
+    def __init__(self, jira_id, found_in_jira, found_in_git, jira_comment, issue_type, git_comment, release_note):
+        self.jira_id = jira_id
+        self.found_in_jira = found_in_jira
+        self.found_in_git = found_in_git
+        self.jira_comment = jira_comment
+        self.issue_type = issue_type
+        self.git_comment = git_comment
         self.release_note = release_note
- 
+
     def __str__(self):
-        return self.foundInJira + " " + self.foundInGit + " " + self.jiraComment + " " + self.issueType + " " + self.gitComment + " " + self.release_note
+        return self.found_in_jira + " " + self.found_in_git + " " + self.jira_comment + " " + self.issue_type + " " + self.git_comment + " " + self.release_note
 
 def main():
 
@@ -91,7 +41,7 @@ def main():
     destTag = argsDict['dest']
     repoLocation = argsDict['repo_loc']
     repo = argsDict['repo']
-    outputFile = argsDict['output'] 
+    outputFile = argsDict['output']
 
     #Fetch the content of a parsed git log
     gitDictionary = get_git_log(repoLocation, repo, sourceTag, destTag)
@@ -104,14 +54,14 @@ def main():
 
     #
     # Find all the issues that are in Git
-    #         
+    #
     for item in gitDictionary:
         entry = ConsolidatedEntry(item, "No", "Yes", "", "", gitDictionary[item].comment, "")
         defectList.append(entry)
-           
+
     # Render the content to a HTML file
-    RenderToHTML(outputFile, destTag, sourceTag, False, epicList, storyList, defectList, supportList, otherList, ReleaseNoteType.ENGINEERING_NOTE)            
+    render_to_html(outputFile, destTag, sourceTag, epicList, storyList, defectList, supportList, otherList, ReleaseNoteType.ENGINEERING_NOTE)
 
 if __name__ == "__main__":
-    main() 
+    main()
 
