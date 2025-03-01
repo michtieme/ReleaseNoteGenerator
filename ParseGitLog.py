@@ -34,7 +34,7 @@ class GitCommitEntry:
         self.comment = kwargs.get('comment')
 
     def __str__(self):
-        return self.hash + " " + self.Issue_id + " " + self.Summary      
+        return self.hash + " " + self.Issue_id + " " + self.Summary
 
 #
 # Get the git history from a git log. This code performs the equivalent to a git log --oneline --no-merges <soure>..<destination> to retrieve the history of
@@ -54,16 +54,9 @@ def get_git_log(repo, repoName, source, destination):
     repo = git.Repo(repoDir)
 
     #
-    #perform a git fetch
+    # Equivalent to: git log --oneline --nomerges --no-decorate <source>..<dest>
     #
-    # TODO: git fetch bombs out. Needs some investigation
-    #for remote in repo.remotes:
-    #    remote.fetch()
-
-    #
-    # Equivalent to: git log --oneline --nomerges $source..$dest
-    #
-    logs = repo.git.log("--oneline", "--no-merges", source + ".." + destination)
+    logs = repo.git.log("--oneline", "--no-merges", "--no-decorate", source + ".." + destination)
     lines = logs.splitlines()
 
     # Parse out all the commits into a list
@@ -92,29 +85,55 @@ def get_git_log(repo, repoName, source, destination):
           
 def splitCommitMessage(gitCommitLine):
 
-    regex = r"(([a-f0-9]{6,8}) ([a-zA-Z0-9]+-[0-9]+)(.+))"
-    match = re.findall(regex, gitCommitLine)
+    sha_regex = r"([a-f0-9]{6,120})"
+    shaMatch = re.findall(sha_regex, gitCommitLine)
 
-    #Did not match the regex
+    #Didn't even find the sha hash, return an empty string
+    if(len(shaMatch) == 0):
+        return gitCommitMessage("", "", "")
+    
+    #Trim off the sha1
+    commitMessage = gitCommitLine.removeprefix(shaMatch[0])
+
+    #Try to match the jira id and the commit message
+    regex = r"([\s]([a-zA-Z0-9]+-[0-9]+)(.+))"
+    match = re.findall(regex, commitMessage)
+
+    #Did not find the jira id from the regex
     if(len(match) == 0):
-        print("Did not match the regex")
-        print(gitCommitLine)
-        return gitCommitMessage("a", "b", "c")
 
-    tuple = match[0]    
+        #Its a common mistake to replace the '-' with a ':' in the jira-id, try to match this instead
+        alternative_regex = r"([\s]([a-zA-Z0-9]+:[0-9]+)(.+))"
+        match = re.findall(alternative_regex, commitMessage)
 
-    if(len(tuple) != 4):
-        print("Did not match the regex")
-        print(gitCommitLine)
+        commitmessage = trim_excess_prefix_characters(commitMessage)
+
+        #Didn't match any style of malformed jira-id's
+        if(len(match) == 0):
+            return gitCommitMessage(shaMatch[0], "UNKNOWN", commitMessage)
+
+        #Fix up the jira-id by replacing the incorrect characters
+        fixedJiraId = match[0][1]
+        fixedJiraId = fixedJiraId.replace(':', '-')
+        return gitCommitMessage(shaMatch[0], fixedJiraId, commitMessage)
+
+    #Alternatively, had to find a tuple of the matched ranges
+    tuple = match[0]
+
+    if(len(tuple) != 3):
+        print("Did not match the regex - wrong tuple size")
+        print(commitMessage)
         return gitCommitMessage("d", "e", "f")
     else:        
-
-        sha = tuple[1]
-        jiraId = tuple[2]
-        message = tuple[3]
+        sha = shaMatch[0]
+        jiraId = tuple[1]
+        message = trim_excess_prefix_characters(tuple[2])
         
     return gitCommitMessage(sha, jiraId, message)
         
+def trim_excess_prefix_characters(message):
+    #trim any leading ':' or '-' characters, or whitespace
+	return message.lstrip(":- ")
 
 def parse_csv_git_log(fileName):
 

@@ -4,6 +4,8 @@ import argparse
 from RenderToHTML import RenderToHTML
 from ParseGitLog import get_git_log
 
+from NoteType import ReleaseNoteType
+
 
 # Ingest the content of a JQL query (for all issues in a release) from a CSV file
 class JiraExportQueryEntry:
@@ -56,13 +58,14 @@ class ReleaseNoteDataImport:
     
 class ConsolidatedEntry:
 
-    def __init__(self, foundInJira, foundInGit, jiraComment, issueType, gitComment, proposed_release_note):
+    def __init__(self, jiraId, foundInJira, foundInGit, jiraComment, issueType, gitComment, release_note):
+        self.jiraId = jiraId
         self.foundInJira = foundInJira
         self.foundInGit = foundInGit
         self.jiraComment = jiraComment
         self.issueType = issueType
         self.gitComment = gitComment
-        self.proposed_release_note = proposed_release_note
+        self.release_note = release_note
  
     def __str__(self):
         return self.foundInJira + " " + self.foundInGit + " " + self.jiraComment + " " + self.issueType + " " + self.gitComment + " " + self.proposed_release_note
@@ -78,6 +81,7 @@ def main():
     parser.add_argument('-r','--repo', type=str, help='The name of the git repo in which to search the history', required=True)
     parser.add_argument('-s','--source', type=str, help='Git tag of starting range to search in git', required=True)
     parser.add_argument('-d','--dest', type=str, help='Git tag of destination to search in git', required=True)
+    parser.add_argument('-o','--output', type=str, help='HTML to render output to', required=True)    
 
     args = parser.parse_args()
     argsDict = vars(args)
@@ -87,6 +91,7 @@ def main():
     destTag = argsDict['dest']
     repoLocation = argsDict['repo_loc']
     repo = argsDict['repo']
+    outputFile = argsDict['output']    
 
     jiraDictionary = {}
     consolidatedDictionary = {}    
@@ -114,7 +119,7 @@ def main():
     for item in jiraDictionary:
 
         # Assume we can't find the entry in the git commit messages
-        entry = ConsolidatedEntry("Yes", "No", jiraDictionary[item].Summary, jiraDictionary[item].IssueType, "", jiraDictionary[item].ProposedReleaseNote)
+        entry = ConsolidatedEntry(item, "Yes", "No", jiraDictionary[item].Summary, jiraDictionary[item].IssueType, "", jiraDictionary[item].ProposedReleaseNote)
 
         if item in gitDictionary:
             # If we find the issue in the GitDirectory mark it as found with the comment
@@ -129,9 +134,7 @@ def main():
     # Find all the issues that are in Git, and determine if we found them in jira dictionary
     #         
     for item in gitDictionary:
-        entry = ConsolidatedEntry("No", "Yes", "", "", gitDictionary[item].comment, "")
-
-        print("Issues in Git", entry)
+        entry = ConsolidatedEntry(item, "No", "Yes", "", "", gitDictionary[item].comment, "")
 
         #Entries that appear in both the gitDictionary and the jiraDictaion
         if item in jiraDictionary:
@@ -151,7 +154,7 @@ def main():
             entry = consolidatedDictionary[item]
 
             #Write out the entry to the CSV file
-            commitWriter.writerow([item, entry.issueType, entry.foundInJira, entry.foundInGit, entry.jiraComment, entry.gitComment, entry.proposed_release_note]) 
+            commitWriter.writerow([item, entry.issueType, entry.foundInJira, entry.foundInGit, entry.jiraComment, entry.gitComment, entry.release_note]) 
 
     #
     # Read in the sanitised CSV file that has been exported from a Google Sheet. This determines what is rendered to HTML
@@ -168,37 +171,43 @@ def main():
     otherList = []
 
     with open(releaseNotes, 'r') as exportedCSVFile:
-        csvReader = csv.DictReader(exportedCSVFile, delimiter="^")
+        csvReader = csv.DictReader(exportedCSVFile, delimiter="\t")
 
         #TODO handle errors when reading the CSV file
 
         for row in csvReader:
 
-            print(row)
             entry = ReleaseNoteDataImport(**row)
 
-            print(entry)
+            if(entry.Take == "Yes"):
+                consolidatedEntry = ConsolidatedEntry(entry.JiraId, 
+                                                    entry.InJira,
+                                                    entry.InGit,
+                                                    entry.JiraComment,
+                                                    entry.IssueType,
+                                                    entry.GitComment,
+                                                    entry.ActualReleaseNote)
 
-            match entry.IssueType:
-                case "Defect": 
-                    defectList.append(entry)
-                case "Epic":
-                    epicList.append(entry)
-                case "Story":
-                    storyList.append(entry)
-                case "Sub-task":
-                    subTaskList.append(entry)                    
-                case "Dependency":
-                    dependencyList.append(entry)    
-                case "Support":
-                    supportList.append(entry)                                      
-                case "Spike":
-                    spikeList.append(entry) 
-                case _:
-                    otherList.append(entry)            
+                match entry.IssueType:
+                    case "Defect": 
+                        defectList.append(consolidatedEntry)
+                    case "Epic":
+                        epicList.append(consolidatedEntry)
+                    case "Story":
+                        storyList.append(consolidatedEntry)
+                    case "Sub-task":
+                        subTaskList.append(consolidatedEntry)                    
+                    case "Dependency":
+                        dependencyList.append(consolidatedEntry)    
+                    case "Support":
+                        supportList.append(consolidatedEntry)                                      
+                    case "Spike":
+                        spikeList.append(consolidatedEntry) 
+                    case _:
+                        otherList.append(consolidatedEntry)            
 
     # Render the content to a HTML file
-    RenderToHTML("Output.html", destTag, sourceTag, False, epicList, storyList, defectList, supportList, otherList)            
+    RenderToHTML(outputFile, destTag, sourceTag, False, epicList, storyList, defectList, supportList, otherList, ReleaseNoteType.RELEASE_NOTE)            
 
 if __name__ == "__main__":
     main() 
