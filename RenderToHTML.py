@@ -5,26 +5,28 @@
 # <list of Defects>
 # <list of Support issues>
 
-def RenderToHTML(outputLocation, version, previousVersion, renderIgnoredIssues, epicList, storyList, defectList, supportList, otherList):
+from NoteType import ReleaseNoteType
+
+def RenderToHTML(outputLocation, version, previousVersion, renderIgnoredIssues, epicList, storyList, defectList, supportList, otherList, noteType):
 
     with open(outputLocation, "w") as outputHTML:        
 
         RenderHeader(outputHTML)
 
-        RenderBody(outputHTML, version, previousVersion)
-        RenderEpics(outputHTML, epicList, "Yes")
-        RenderStories(outputHTML, storyList, "Yes", "Minor enhancements made to device software")
-        RenderDefects(outputHTML, defectList, "Yes", "Defects resolved in device software")
-        RenderSupport(outputHTML, supportList, "Yes", "Customer support issues resolved in device software")
+        RenderBody(outputHTML, version, previousVersion, noteType)
+        RenderEpics(outputHTML, epicList, noteType)
+        RenderStories(outputHTML, storyList, "Minor enhancements made to device software", noteType)
+        RenderDefects(outputHTML, defectList, "Defects resolved in device software", noteType)
+        RenderSupport(outputHTML, supportList, "Customer support issues resolved in device software", noteType)
 
         #Render issues that are not suitable for release notes
         RenderHorizontalLine(outputHTML)
 
         if(renderIgnoredIssues):
-            RenderIgnoredEpics(outputHTML, epicList, "No")
-            RenderStories(outputHTML, storyList, "No", "Stories to ignore from release notes")
-            RenderDefects(outputHTML, defectList, "No", "Defects to ignore from release notes")
-            RenderSupport(outputHTML, supportList, "No", "Support issues to ignore from release notes")
+            RenderIgnoredEpics(outputHTML, epicList)
+            RenderStories(outputHTML, storyList, "Stories to ignore from release notes")
+            RenderDefects(outputHTML, defectList, "Defects to ignore from release notes")
+            RenderSupport(outputHTML, supportList, "Support issues to ignore from release notes")
 
         RenderCloseBody(outputHTML)
 
@@ -77,14 +79,14 @@ def RenderHeader(outputHTML):
        
     outputHTML.write(htmlcode)
 
-def RenderBody(outputHTML, version, previousVersion):
+def RenderBody(outputHTML, version, previousVersion, noteType):
 
     # Write the HTML Body text
 
     htmlBody = """
     <body>
         <div class="releaseNotes">
-            <h1>Motorola Solutions device release notes - """
+            <h1>Motorola Solutions release notes - """
     
     htmlBodyNext = "</h1>" + """
             <!--<p><em>Warning:</em> These release notes are incomplete, expect an update</p>-->
@@ -105,7 +107,11 @@ def RenderBody(outputHTML, version, previousVersion):
     since = "<h3>Changes since " + previousVersion + "</h3>" + """
             <dl>\n"""
 
-    htmlContent = htmlBody + htmlBodyNext + htmlSoftwareVersion + htmlBodyTail + since    
+    if(noteType == noteType.RELEASE_NOTE):
+        htmlContent = htmlBody + htmlBodyNext + htmlSoftwareVersion + htmlBodyTail + since    
+    else:
+        htmlContent = htmlBody + htmlBodyNext + htmlSoftwareVersion + since
+
     outputHTML.write(htmlContent)
 
 def RenderCloseBody(outputHTML):
@@ -120,7 +126,7 @@ def RenderCloseBody(outputHTML):
     
     outputHTML.write(then + closeBody)
 
-def RenderTableOfIssues(outputHTML, issues, header, takeReleaseNote):    
+def RenderTableOfIssues(outputHTML, issues, header, noteType):   
 
     # Render a table of issues
     outputHTML.write("<dt>" + header + "</dt>")
@@ -138,16 +144,44 @@ def RenderTableOfIssues(outputHTML, issues, header, takeReleaseNote):
     
     outputHTML.write(output)
 
-    for issue in issues:
-        if(issue.Take == takeReleaseNote):
-            outputHTML.write("\t\t\t\t<tr>")
-            outputHTML.write("\t\t\t\t\t<td>" + issue.JiraId +"</td>\n")
+    match noteType:
+        case noteType.RELEASE_NOTE:
 
-            if(takeReleaseNote == "Yes"):
-                outputHTML.write("\t\t\t\t\t<td>" + issue.ActualReleaseNote + "\n\t\t\t\t</td> \n")
-            else:
-                outputHTML.write("\t\t\t\t\t<td>" + issue.ActualReleaseNote + "\n\t\t\t\t</td> \n")
-            outputHTML.write("\t\t\t\t</tr>")
+            for issue in issues:
+                    outputHTML.write("\t\t\t\t<tr>")
+                    outputHTML.write("\t\t\t\t\t<td>" + issue.jiraId +"</td>\n")
+                    outputHTML.write("\t\t\t\t\t<td>" + issue.release_note + "\n\t\t\t\t</td> \n")
+                    outputHTML.write("\t\t\t\t</tr>")
+
+        case noteType.ENGINEERING_NOTE:
+
+            for issue in issues:
+                    
+                    #Render hyperlinks
+                    jiraID = issue.jiraId
+                    dashLocation = -1
+                    url = ""
+
+                    # AZMV issues are in AZDO
+                    if(jiraID.startswith(("AZMV", "azmv"))):
+                       
+                       dashLocation = jiraID.find('-')
+                       length = len(jiraID)
+
+                       if(dashLocation != -1):
+                            azdoId = jiraID[dashLocation+1:length]
+                            url = 'https://dev.azure.com/MobileVideo/VideoManager/_workitems/edit/' + azdoId
+                            
+                    else:                    
+                        # Assume the issue is a Jira instead                        
+                        url = "https://jira.mot-solutions.com/browse/" + jiraID
+
+                    jiraID = '<a href="' + url + '">' + issue.jiraId + '</a>'
+
+                    outputHTML.write("\t\t\t\t<tr>")
+                    outputHTML.write("\t\t\t\t\t<td>" + jiraID +"</td>\n")
+                    outputHTML.write("\t\t\t\t\t<td>" + issue.gitComment + "\n\t\t\t\t</td> \n")
+                    outputHTML.write("\t\t\t\t</tr>")
     
     closingTags = """
                     </table>
@@ -155,22 +189,20 @@ def RenderTableOfIssues(outputHTML, issues, header, takeReleaseNote):
 
     outputHTML.write(closingTags)
 
-def RenderEpics(outputHTML, EpicsList, takeReleaseNote):
+def RenderEpics(outputHTML, EpicsList, noteType):
     for epic in EpicsList:
+            outputHTML.write("\t\t\t\t<dt>New Feature: " + epic.jiraComment +"</dt> \n")
+            outputHTML.write("\t\t\t\t<dd>\n\t\t\t\t\t" + epic.release_note + "\n\t\t\t\t</dd> \n")
 
-        if(epic.Take == takeReleaseNote):
-            outputHTML.write("\t\t\t\t<dt>New Feature: " + epic.JiraComment +"</dt> \n")
-            outputHTML.write("\t\t\t\t<dd>\n\t\t\t\t\t" + epic.ActualReleaseNote + "\n\t\t\t\t</dd> \n")
+def RenderIgnoredEpics(outputHTML, epics, noteType):
+    RenderTableOfIssues(outputHTML, epics, "Epics to ignore for release notes")
 
-def RenderIgnoredEpics(outputHTML, epics, takeReleaseNote):
-    RenderTableOfIssues(outputHTML, epics, "Epics to ignore for release notes", takeReleaseNote)
+def RenderStories(outputHTML, stories, description, noteType):
+    RenderTableOfIssues(outputHTML, stories, description, noteType)
 
-def RenderStories(outputHTML, stories, takeReleaseNote, description):
-    RenderTableOfIssues(outputHTML, stories, description, takeReleaseNote)
-
-def RenderDefects(outputHTML, defects, takeReleaseNote, description):
-    RenderTableOfIssues(outputHTML, defects, description, takeReleaseNote)
+def RenderDefects(outputHTML, defects, description, noteType):
+    RenderTableOfIssues(outputHTML, defects, description, noteType)
 
 
-def RenderSupport(outputHTML, supportIssues, takeReleaseNote, description):
-    RenderTableOfIssues(outputHTML, supportIssues, description, takeReleaseNote)      
+def RenderSupport(outputHTML, supportIssues, description, noteType):
+    RenderTableOfIssues(outputHTML, supportIssues, description, noteType)      
