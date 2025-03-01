@@ -5,42 +5,40 @@
 # <list of Defects>
 # <list of Support issues>
 
-from NoteType import ReleaseNoteType
+def render_to_html(output_location, version, previous_version, render_ignored_issues, epics, stories, defects, support_issues, other, note_type):
 
-def RenderToHTML(outputLocation, version, previousVersion, renderIgnoredIssues, epicList, storyList, defectList, supportList, otherList, noteType):
+    with open(output_location, "w") as output_html:        
 
-    with open(outputLocation, "w") as outputHTML:        
+        render_header(output_html)
 
-        RenderHeader(outputHTML)
-
-        RenderBody(outputHTML, version, previousVersion, noteType)
-        RenderEpics(outputHTML, epicList, noteType)
-        RenderStories(outputHTML, storyList, "Minor enhancements made to device software", noteType)
-        RenderDefects(outputHTML, defectList, "Defects resolved in device software", noteType)
-        RenderSupport(outputHTML, supportList, "Customer support issues resolved in device software", noteType)
+        render_body(output_html, version, previous_version, note_type)
+        render_epics(output_html, epics, note_type)
+        render_stories(output_html, stories, "Minor enhancements made to device software", note_type)
+        render_defects(output_html, defects, "Defects resolved in device software", note_type)
+        render_support(output_html, support_issues, "Customer support issues resolved in device software", note_type)
 
         #Render issues that are not suitable for release notes
-        RenderHorizontalLine(outputHTML)
+        render_horizontal_line(output_html)
 
-        if(renderIgnoredIssues):
-            RenderIgnoredEpics(outputHTML, epicList)
-            RenderStories(outputHTML, storyList, "Stories to ignore from release notes")
-            RenderDefects(outputHTML, defectList, "Defects to ignore from release notes")
-            RenderSupport(outputHTML, supportList, "Support issues to ignore from release notes")
+        if(render_ignored_issues):
+            render_ignored_epics(output_html, epics, note_type)
+            render_stories(output_html, stories, "Stories to ignore from release notes", note_type)
+            render_defects(output_html, defects, "Defects to ignore from release notes", note_type)
+            render_support(output_html, support_issues, "Support issues to ignore from release notes", note_type)
 
-        RenderCloseBody(outputHTML)
+        render_close_body(output_html)
 
-    outputHTML.close()        
+    output_html.close()
 
-def RenderHorizontalLine(outputHTML):
-    outputHTML.write("<hr>")
+def render_horizontal_line(output):
+    output.write("<hr>")
 
-def RenderHeader(outputHTML):
+def render_header(output):
 
     # Write the HTML Header
 
     #TODO: Set the release notes title correctly        
-    htmlcode = """<html lang="en">
+    html = """<html lang="en">
         <head>
             <meta charset="utf-8"/>
             <style>
@@ -77,25 +75,25 @@ def RenderHeader(outputHTML):
             <title>Release Notes - V500 - Version V500_25.1</title>
         </head>"""
        
-    outputHTML.write(htmlcode)
+    output.write(html)
 
-def RenderBody(outputHTML, version, previousVersion, noteType):
+def render_body(html, version, previous_version, note_type):
 
     # Write the HTML Body text
 
-    htmlBody = """
+    html_body = """
     <body>
         <div class="releaseNotes">
             <h1>Motorola Solutions release notes - """
     
-    htmlBodyNext = "</h1>" + """
+    next = "</h1>" + """
             <!--<p><em>Warning:</em> These release notes are incomplete, expect an update</p>-->
             <h2>Changes</h2>
             <hr>"""
 
-    htmlSoftwareVersion = "<h3>Software updated in " + version + "</h3>"
+    software_version = "<h3>Software updated in " + version + "</h3>"
 
-    htmlBodyTail = """
+    tail = """
             <ul>
                 <li>V500 firmware
                 <li>VB400 firmware
@@ -104,17 +102,17 @@ def RenderBody(outputHTML, version, previousVersion, noteType):
                 <li>Smart Dock firmware
             </ul>"""
     
-    since = "<h3>Changes since " + previousVersion + "</h3>" + """
+    since = "<h3>Changes since " + previous_version + "</h3>" + """
             <dl>\n"""
 
-    if(noteType == noteType.RELEASE_NOTE):
-        htmlContent = htmlBody + htmlBodyNext + htmlSoftwareVersion + htmlBodyTail + since    
+    if(note_type == note_type.RELEASE_NOTE):
+        content = html_body + next + software_version + tail + since    
     else:
-        htmlContent = htmlBody + htmlBodyNext + htmlSoftwareVersion + since
+        content = html_body + next + software_version + since
 
-    outputHTML.write(htmlContent)
+    html.write(content)
 
-def RenderCloseBody(outputHTML):
+def render_close_body(outputHTML):
 
     # Write the HTML body closing tags
 
@@ -126,7 +124,7 @@ def RenderCloseBody(outputHTML):
     
     outputHTML.write(then + closeBody)
 
-def RenderTableOfIssues(outputHTML, issues, header, noteType):   
+def render_table_of_issues(outputHTML, issues, header, noteType):   
 
     # Render a table of issues
     outputHTML.write("<dt>" + header + "</dt>")
@@ -149,7 +147,7 @@ def RenderTableOfIssues(outputHTML, issues, header, noteType):
 
             for issue in issues:
                     outputHTML.write("\t\t\t\t<tr>")
-                    outputHTML.write("\t\t\t\t\t<td>" + issue.jiraId +"</td>\n")
+                    outputHTML.write("\t\t\t\t\t<td>" + issue.jira_id +"</td>\n")
                     outputHTML.write("\t\t\t\t\t<td>" + issue.release_note + "\n\t\t\t\t</td> \n")
                     outputHTML.write("\t\t\t\t</tr>")
 
@@ -158,29 +156,29 @@ def RenderTableOfIssues(outputHTML, issues, header, noteType):
             for issue in issues:
                     
                     #Render hyperlinks
-                    jiraID = issue.jiraId
-                    dashLocation = -1
+                    jira_id = issue.jira_id
+                    dash_location = -1
                     url = ""
 
                     # AZMV issues are in AZDO
-                    if(jiraID.startswith(("AZMV", "azmv"))):
+                    if(jira_id.startswith(("AZMV", "azmv"))):
                        
-                       dashLocation = jiraID.find('-')
-                       length = len(jiraID)
+                       dash_location = jira_id.find('-')
+                       length = len(jira_id)
 
-                       if(dashLocation != -1):
-                            azdoId = jiraID[dashLocation+1:length]
-                            url = 'https://dev.azure.com/MobileVideo/VideoManager/_workitems/edit/' + azdoId
+                       if(dash_location != -1):
+                            azdo_id = jira_id[dash_location+1:length]
+                            url = 'https://dev.azure.com/MobileVideo/VideoManager/_workitems/edit/' + azdo_id
                             
                     else:                    
                         # Assume the issue is a Jira instead                        
-                        url = "https://jira.mot-solutions.com/browse/" + jiraID
+                        url = "https://jira.mot-solutions.com/browse/" + jira_id
 
-                    jiraID = '<a href="' + url + '">' + issue.jiraId + '</a>'
+                    jira_id = '<a href="' + url + '">' + issue.jira_id + '</a>'
 
                     outputHTML.write("\t\t\t\t<tr>")
-                    outputHTML.write("\t\t\t\t\t<td>" + jiraID +"</td>\n")
-                    outputHTML.write("\t\t\t\t\t<td>" + issue.gitComment + "\n\t\t\t\t</td> \n")
+                    outputHTML.write("\t\t\t\t\t<td>" + jira_id +"</td>\n")
+                    outputHTML.write("\t\t\t\t\t<td>" + issue.git_comment + "\n\t\t\t\t</td> \n")
                     outputHTML.write("\t\t\t\t</tr>")
     
     closingTags = """
@@ -189,20 +187,20 @@ def RenderTableOfIssues(outputHTML, issues, header, noteType):
 
     outputHTML.write(closingTags)
 
-def RenderEpics(outputHTML, EpicsList, noteType):
+def render_epics(outputHTML, EpicsList, noteType):
     for epic in EpicsList:
-            outputHTML.write("\t\t\t\t<dt>New Feature: " + epic.jiraComment +"</dt> \n")
+            outputHTML.write("\t\t\t\t<dt>New Feature: " + epic.jira_comment +"</dt> \n")
             outputHTML.write("\t\t\t\t<dd>\n\t\t\t\t\t" + epic.release_note + "\n\t\t\t\t</dd> \n")
 
-def RenderIgnoredEpics(outputHTML, epics, noteType):
-    RenderTableOfIssues(outputHTML, epics, "Epics to ignore for release notes")
+def render_ignored_epics(outputHTML, epics, noteType):
+    render_table_of_issues(outputHTML, epics, "Epics to ignore for release notes")
 
-def RenderStories(outputHTML, stories, description, noteType):
-    RenderTableOfIssues(outputHTML, stories, description, noteType)
+def render_stories(outputHTML, stories, description, noteType):
+    render_table_of_issues(outputHTML, stories, description, noteType)
 
-def RenderDefects(outputHTML, defects, description, noteType):
-    RenderTableOfIssues(outputHTML, defects, description, noteType)
+def render_defects(outputHTML, defects, description, noteType):
+    render_table_of_issues(outputHTML, defects, description, noteType)
 
 
-def RenderSupport(outputHTML, supportIssues, description, noteType):
-    RenderTableOfIssues(outputHTML, supportIssues, description, noteType)      
+def render_support(outputHTML, supportIssues, description, noteType):
+    render_table_of_issues(outputHTML, supportIssues, description, noteType)      
