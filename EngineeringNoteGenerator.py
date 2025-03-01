@@ -4,8 +4,8 @@ import argparse
 from RenderToHTML import render_to_html
 from ParseGitLog import get_git_log
 
-from NoteType import ReleaseNoteType      
-    
+from NoteType import ReleaseNoteType
+
 class ConsolidatedEntry:
 
     def __init__(self, jira_id, found_in_jira, found_in_git, jira_comment, issue_type, git_comment, release_note):
@@ -16,7 +16,7 @@ class ConsolidatedEntry:
         self.issue_type = issue_type
         self.git_comment = git_comment
         self.release_note = release_note
- 
+
     def __str__(self):
         return self.found_in_jira + " " + self.found_in_git + " " + self.jira_comment + " " + self.issue_type + " " + self.git_comment + " " + self.release_note
 
@@ -41,7 +41,7 @@ def main():
     destTag = argsDict['dest']
     repoLocation = argsDict['repo_loc']
     repo = argsDict['repo']
-    outputFile = argsDict['output'] 
+    outputFile = argsDict['output']
 
     #Fetch the content of a parsed git log
     gitDictionary = get_git_log(repoLocation, repo, sourceTag, destTag)
@@ -54,14 +54,14 @@ def main():
 
     #
     # Find all the issues that are in Git
-    #         
+    #
     for item in gitDictionary:
         entry = ConsolidatedEntry(item, "No", "Yes", "", "", gitDictionary[item].comment, "")
         defectList.append(entry)
-           
+
     # Render the content to a HTML file
-    render_to_html(outputFile, destTag, sourceTag, epicList, storyList, defectList, supportList, otherList, ReleaseNoteType.ENGINEERING_NOTE)            
+    render_to_html(outputFile, destTag, sourceTag, epicList, storyList, defectList, supportList, otherList, ReleaseNoteType.ENGINEERING_NOTE)
 
 if __name__ == "__main__":
-    main() 
+    main()
 
