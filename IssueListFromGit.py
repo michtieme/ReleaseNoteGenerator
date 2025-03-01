@@ -7,7 +7,7 @@
 
 import argparse
 
-from RenderToHTML import RenderToHTML
+from RenderToHTML import render_to_html
 from ParseGitLog import get_git_log
 
 def main():
@@ -23,60 +23,62 @@ def main():
     parser.add_argument('-o','--output', type=str, help='JQL output for issues that have changed', required=True)
 
     args = parser.parse_args()
-    argsDict = vars(args)
+    arguments = vars(args)
 
-    sourceTag = argsDict['source']
-    destTag = argsDict['dest']
-    repoLocation = argsDict['repo_loc']
-    repo = argsDict['repo']
-    outputFile = argsDict['output']
+    source = arguments['source']
+    dest = arguments['dest']
+    repo_location = arguments['repo_loc']
+    repo = arguments['repo']
+    output = arguments['output']
 
     #Fetch the content of a parsed git log
-    gitDictionary = get_git_log(repoLocation, repo, sourceTag, destTag)
+    gitDictionary = get_git_log(repo_location, repo, source, dest)
 
-    V500List = []
-    VB400List = []    
-    V200List = []
-    SDOCKList = []
+    V500_issues = []
+    VB400_issues = []
+    V200_issues = []
+    SDOCK_issues = []
 
     #
     # Find all the issues that are in Git
-    #         
-    for item in gitDictionary:
+    #
+    for item, entry in gitDictionary.items():
 
         if(item.startswith("V500")):
-            V500List.append(gitDictionary[item])
+            V500_issues.append(entry)
         elif(item.startswith("VB400")):
-            VB400List.append(gitDictionary[item])
+            VB400_issues.append(entry)
         elif(item.startswith("SDOCK")):
-            SDOCKList.append(gitDictionary[item])
+            SDOCK_issues.append(entry)
         elif(item.startswith("V200")):
-            V200List.append(gitDictionary[item])
-            
+            V200_issues.append(entry)
+
+
+    print("Rendering the JQL......")
 
     #Build the JQL query
-    jqlQuery = "issueKey in ("
-    for item in V500List:
-        jqlQuery = jqlQuery + item.jiraId + ","
+    query = "issueKey in ("
+    for item in V500_issues:
+        query = query + item.jira_id + ","
 
-    for item in VB400List:
-        jqlQuery = jqlQuery + item.jiraId + ","
+    for item in VB400_issues:
+        query = query + item.jira_id + ","
 
-    for item in SDOCKList:
-        jqlQuery = jqlQuery + item.jiraId + ","
+    for item in SDOCK_issues:
+        query = query + item.jira_id + ","
 
-    for item in V200List:
-        jqlQuery = jqlQuery + item.jiraId + ","        
+    for item in V200_issues:
+        query = query + item.jira_id + ","
 
     #Remove the trailing ','
-    jqlQuery = jqlQuery[:-1]
-    jqlQuery = jqlQuery + ")"
-    
-    print("JQL Query ", jqlQuery)
+    query = query[:-1]
+    query = query + ")"
 
-    with open(outputFile, "w") as jqlFile:
-        jqlFile.write(jqlQuery)    
+    print("JQL Query ", query)
+
+    with open(output, "w") as jql_file:
+        jql_file.write(query)
 
 if __name__ == "__main__":
-    main() 
+    main()
 

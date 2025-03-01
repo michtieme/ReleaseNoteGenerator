@@ -15,26 +15,26 @@ from git import Repo
 #
 class gitCommitMessage:
 
-    def __init__(self, hash, jiraId, comment):
+    def __init__(self, hash, jira_id, comment):
         self.hash = hash
-        self.jiraId = jiraId
+        self.jira_id = jira_id
         self.comment = comment
- 
+
     def __str__(self):
-        return "[" + self.hash + "],[" + self.jiraId + "],[" + self.comment + "]"
-    
+        return "[" + self.hash + "],[" + self.jira_id + "],[" + self.comment + "]"
+
 class GitCommitEntry:
 
-# CSV Header:    
+# CSV Header:
 # hash, issue_id, summary
 
     def __init__(self, **kwargs):
         self.hash = kwargs.get('hash')
-        self.jiraId = kwargs.get('jiraId')
+        self.jira_id = kwargs.get('jiraId')
         self.comment = kwargs.get('comment')
 
     def __str__(self):
-        return self.hash + " " + self.Issue_id + " " + self.Summary
+        return self.hash + " " + self.jira_id + " " + self.comment
 
 #
 # Get the git history from a git log. This code performs the equivalent to a git log --oneline --no-merges <soure>..<destination> to retrieve the history of
@@ -62,9 +62,9 @@ def get_git_log(repo, repoName, source, destination):
     # Parse out all the commits into a list
     commits = []
     for line in lines:
-        commit = splitCommitMessage(line)    
+        commit = splitCommitMessage(line)
         commits.append(commit)
-        gitDictionary[commit.jiraId] = commit
+        gitDictionary[commit.jira_id] = commit
 
     print("========================================================")
     for entry in gitDictionary:
@@ -76,13 +76,13 @@ def get_git_log(repo, repoName, source, destination):
         with open('commitMessages.csv', 'w', newline='') as csvfile:
             commitWriter = csv.writer(csvfile, delimiter=',')
             commitWriter.writerow(['Hash', 'JiraId', 'Comment'])
-            
+
             for commit in commits:
-                commitWriter.writerow([commit.hash, commit.jiraId, commit.comment])
+                commitWriter.writerow([commit.hash, commit.jira_id, commit.comment])
 
-    return gitDictionary                
+    return gitDictionary
 
-          
+
 def splitCommitMessage(gitCommitLine):
 
     sha_regex = r"([a-f0-9]{6,120})"
@@ -91,7 +91,7 @@ def splitCommitMessage(gitCommitLine):
     #Didn't even find the sha hash, return an empty string
     if(len(shaMatch) == 0):
         return gitCommitMessage("", "", "")
-    
+
     #Trim off the sha1
     commitMessage = gitCommitLine.removeprefix(shaMatch[0])
 
@@ -124,13 +124,13 @@ def splitCommitMessage(gitCommitLine):
         print("Did not match the regex - wrong tuple size")
         print(commitMessage)
         return gitCommitMessage("d", "e", "f")
-    else:        
+    else:
         sha = shaMatch[0]
         jiraId = tuple[1]
         message = trim_excess_prefix_characters(tuple[2])
-        
+
     return gitCommitMessage(sha, jiraId, message)
-        
+
 def trim_excess_prefix_characters(message):
     #trim any leading ':' or '-' characters, or whitespace
 	return message.lstrip(":- ")
@@ -145,7 +145,7 @@ def parse_csv_git_log(fileName):
 
         for row in csvReader:
             entry = GitCommitEntry(**row)
-            print(entry)            
+            print(entry)
 
 
 if __name__ == "__main__":
