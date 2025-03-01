@@ -34,7 +34,7 @@ class GitCommitEntry:
         self.comment = kwargs.get('comment')
 
     def __str__(self):
-        return self.hash + " " + self.Issue_id + " " + self.Summary      
+        return self.hash + " " + self.Issue_id + " " + self.Summary
 
 #
 # Get the git history from a git log. This code performs the equivalent to a git log --oneline --no-merges <soure>..<destination> to retrieve the history of
@@ -54,14 +54,7 @@ def get_git_log(repo, repoName, source, destination):
     repo = git.Repo(repoDir)
 
     #
-    #perform a git fetch
-    #
-    # TODO: git fetch bombs out. Needs some investigation
-    #for remote in repo.remotes:
-    #    remote.fetch()
-
-    #
-    # Equivalent to: git log --oneline --nomerges $source..$dest
+    # Equivalent to: git log --oneline --nomerges --no-decorate <source>..<dest>
     #
     logs = repo.git.log("--oneline", "--no-merges", "--no-decorate", source + ".." + destination)
     lines = logs.splitlines()
@@ -135,8 +128,6 @@ def splitCommitMessage(gitCommitLine):
         sha = shaMatch[0]
         jiraId = tuple[1]
         message = trim_excess_prefix_characters(tuple[2])
-
-        #Trim spurious characters from the commit message
         
     return gitCommitMessage(sha, jiraId, message)
         
