@@ -8,7 +8,6 @@ import csv
 # GitPython
 #
 import git
-from git import Repo
 
 #
 # Class to hold a git commit message of the form: <hash> <jiraId> <comment>
@@ -42,16 +41,16 @@ class GitCommitEntry:
 #
 
 #Assumes you have access to the tags (have performed a git fetch of the repo)
-def get_git_log(repo, repoName, source, destination):
+def get_git_log(repo, repo_name, source, destination):
 
-    writeLog = True
-    gitDictionary = {}
+    write_git_log = True
+    commit_dictionary = {}
 
     #Location of the repo
-    repoDir = os.path.join(os.path.abspath(repo), repoName)
+    repo_directory = os.path.join(os.path.abspath(repo), repo_name)
 
     #Set the repo
-    repo = git.Repo(repoDir)
+    repo = git.Repo(repo_directory)
 
     #
     # Equivalent to: git log --oneline --nomerges --no-decorate <source>..<dest>
@@ -64,76 +63,72 @@ def get_git_log(repo, repoName, source, destination):
     for line in lines:
         commit = splitCommitMessage(line)
         commits.append(commit)
-        gitDictionary[commit.jira_id] = commit
-
-    print("========================================================")
-    for entry in gitDictionary:
-        print(entry + " " + str(gitDictionary[entry]))
+        commit_dictionary[commit.jira_id] = commit
 
     # Optionally write all the commits into a CSV file of the form: <Hash>, <Jira_id>, <comment>
-    if (writeLog):
+    if (write_git_log):
 
         with open('commitMessages.csv', 'w', newline='') as csvfile:
-            commitWriter = csv.writer(csvfile, delimiter=',')
-            commitWriter.writerow(['Hash', 'JiraId', 'Comment'])
+            commit_writer = csv.writer(csvfile, delimiter=',')
+            commit_writer.writerow(['Hash', 'JiraId', 'Comment'])
 
             for commit in commits:
-                commitWriter.writerow([commit.hash, commit.jira_id, commit.comment])
+                commit_writer.writerow([commit.hash, commit.jira_id, commit.comment])
 
-    return gitDictionary
+    return commit_dictionary
 
 
 def splitCommitMessage(gitCommitLine):
 
     sha_regex = r"([a-f0-9]{6,120})"
-    shaMatch = re.findall(sha_regex, gitCommitLine)
+    sha_match = re.findall(sha_regex, gitCommitLine)
 
     #Didn't even find the sha hash, return an empty string
-    if(len(shaMatch) == 0):
+    if(len(sha_match) == 0):
         return gitCommitMessage("", "", "")
 
     #Trim off the sha1
-    commitMessage = gitCommitLine.removeprefix(shaMatch[0])
+    commit_message = gitCommitLine.removeprefix(sha_match[0])
 
     #Try to match the jira id and the commit message
     regex = r"([\s]([a-zA-Z0-9]+-[0-9]+)(.+))"
-    match = re.findall(regex, commitMessage)
+    match = re.findall(regex, commit_message)
 
     #Did not find the jira id from the regex
     if(len(match) == 0):
 
         #Its a common mistake to replace the '-' with a ':' in the jira-id, try to match this instead
         alternative_regex = r"([\s]([a-zA-Z0-9]+:[0-9]+)(.+))"
-        match = re.findall(alternative_regex, commitMessage)
+        match = re.findall(alternative_regex, commit_message)
 
-        commitmessage = trim_excess_prefix_characters(commitMessage)
+        commit_message = trim_excess_prefix_characters(commit_message)
 
-        #Didn't match any style of malformed jira-id's
+        #Didn't match any style of malformed jira-id's (jira-id is missing)
         if(len(match) == 0):
-            return gitCommitMessage(shaMatch[0], "UNKNOWN", commitMessage)
+            return gitCommitMessage(sha_match[0], "UNKNOWN", commit_message)
 
         #Fix up the jira-id by replacing the incorrect characters
-        fixedJiraId = match[0][1]
-        fixedJiraId = fixedJiraId.replace(':', '-')
-        return gitCommitMessage(shaMatch[0], fixedJiraId, commitMessage)
+        fixed_jira_id = match[0][1]
+        fixed_jira_id = fixed_jira_id.replace(':', '-')
+        return gitCommitMessage(sha_match[0], fixed_jira_id, commit_message)
 
     #Alternatively, had to find a tuple of the matched ranges
-    tuple = match[0]
+    tuple_of_matches = match[0]
 
-    if(len(tuple) != 3):
+    if(len(tuple_of_matches) != 3):
         print("Did not match the regex - wrong tuple size")
-        print(commitMessage)
-        return gitCommitMessage("d", "e", "f")
+        print(commit_message)
+        return gitCommitMessage("UNKNOWN", "UNKNOWN", "UNKNOWN")
     else:
-        sha = shaMatch[0]
-        jiraId = tuple[1]
-        message = trim_excess_prefix_characters(tuple[2])
+        sha = sha_match[0]
+        jira_id = tuple_of_matches[1]
+        message = trim_excess_prefix_characters(tuple_of_matches[2])
 
-    return gitCommitMessage(sha, jiraId, message)
+    return gitCommitMessage(sha, jira_id, message)
 
 def trim_excess_prefix_characters(message):
     #trim any leading ':' or '-' characters, or whitespace
-	return message.lstrip(":- ")
+	return message.lstrip(",:- ")
 
 def parse_csv_git_log(fileName):
 
