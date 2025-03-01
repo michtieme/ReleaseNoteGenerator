@@ -81,6 +81,7 @@ def main():
     parser.add_argument('-r','--repo', type=str, help='The name of the git repo in which to search the history', required=True)
     parser.add_argument('-s','--source', type=str, help='Git tag of starting range to search in git', required=True)
     parser.add_argument('-d','--dest', type=str, help='Git tag of destination to search in git', required=True)
+    parser.add_argument('-i','--input', type=str, help='Location of sanitised release notes to be render to HTML. This is a CSV file imported from Google Sheets.', required=True)
     parser.add_argument('-o','--output', type=str, help='HTML to render output to', required=True)    
 
     args = parser.parse_args()
@@ -91,7 +92,8 @@ def main():
     destTag = argsDict['dest']
     repoLocation = argsDict['repo_loc']
     repo = argsDict['repo']
-    outputFile = argsDict['output']    
+    outputFile = argsDict['output']
+    sanitisedReleaseNotes = argsDict['input']
 
     jiraDictionary = {}
     consolidatedDictionary = {}    
@@ -159,8 +161,6 @@ def main():
     #
     # Read in the sanitised CSV file that has been exported from a Google Sheet. This determines what is rendered to HTML
     #
-    releaseNotes= "ImportedFromGoogleSheets.csv"
-
     epicList = []
     defectList = []
     storyList = []
@@ -170,7 +170,7 @@ def main():
     supportList = []
     otherList = []
 
-    with open(releaseNotes, 'r') as exportedCSVFile:
+    with open(sanitisedReleaseNotes, 'r') as exportedCSVFile:
         csvReader = csv.DictReader(exportedCSVFile, delimiter="\t")
 
         #TODO handle errors when reading the CSV file
@@ -181,12 +181,12 @@ def main():
 
             if(entry.Take == "Yes"):
                 consolidatedEntry = ConsolidatedEntry(entry.JiraId, 
-                                                    entry.InJira,
-                                                    entry.InGit,
-                                                    entry.JiraComment,
-                                                    entry.IssueType,
-                                                    entry.GitComment,
-                                                    entry.ActualReleaseNote)
+                                                      entry.InJira,
+                                                      entry.InGit,
+                                                      entry.JiraComment,
+                                                      entry.IssueType,
+                                                      entry.GitComment,
+                                                      entry.ActualReleaseNote)
 
                 match entry.IssueType:
                     case "Defect": 
