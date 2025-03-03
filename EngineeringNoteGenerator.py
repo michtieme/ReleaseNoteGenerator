@@ -1,11 +1,14 @@
-import csv
+"""Engineering Release Note Generator - pretty prints the content of a git log to html"""
+
 import argparse
+import dataclasses
 
 from RenderToHTML import render_to_html
 from ParseGitLog import get_git_log
 
 from NoteType import ReleaseNoteType
 
+@dataclasses.dataclass
 class ConsolidatedEntry:
 
     def __init__(self, jira_id, found_in_jira, found_in_git, jira_comment, issue_type, git_comment, release_note):
@@ -21,7 +24,7 @@ class ConsolidatedEntry:
         return self.found_in_jira + " " + self.found_in_git + " " + self.jira_comment + " " + self.issue_type + " " + self.git_comment + " " + self.release_note
 
 def main():
-
+    """Pretty print the content of a git log to html"""
     #
     #Parse the command line arguments
     #
@@ -34,34 +37,32 @@ def main():
     parser.add_argument('-o','--output', type=str, help='HTML to render output to', required=True)
 
     args = parser.parse_args()
-    argsDict = vars(args)
+    arguments = vars(args)
 
-    jiraExportFile = argsDict['jira']
-    sourceTag = argsDict['source']
-    destTag = argsDict['dest']
-    repoLocation = argsDict['repo_loc']
-    repo = argsDict['repo']
-    outputFile = argsDict['output']
+    source = arguments['source']
+    destination = arguments['dest']
+    repo_location = arguments['repo_loc']
+    repo = arguments['repo']
+    output = arguments['output']
 
     #Fetch the content of a parsed git log
-    gitDictionary = get_git_log(repoLocation, repo, sourceTag, destTag)
+    gitDictionary = get_git_log(repo_location, repo, source, destination)
 
-    epicList = []
-    defectList = []
-    storyList = []
-    supportList = []
-    otherList = []
+    epics = []
+    defects = []
+    stories = []
+    support_issues = []
+    other = []
 
     #
     # Find all the issues that are in Git
     #
-    for item in gitDictionary:
-        entry = ConsolidatedEntry(item, "No", "Yes", "", "", gitDictionary[item].comment, "")
-        defectList.append(entry)
+    for item, dict_entry in gitDictionary.items():
+        entry = ConsolidatedEntry(item, "No", "Yes", "", "", dict_entry.comment, "")
+        defects.append(entry)
 
     # Render the content to a HTML file
-    render_to_html(outputFile, destTag, sourceTag, epicList, storyList, defectList, supportList, otherList, ReleaseNoteType.ENGINEERING_NOTE)
+    render_to_html(output, destination, source, epics, stories, defects, support_issues, other, ReleaseNoteType.ENGINEERING_NOTE)
 
 if __name__ == "__main__":
     main()
-
