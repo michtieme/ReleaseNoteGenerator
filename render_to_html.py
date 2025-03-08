@@ -264,7 +264,6 @@ def render_table_of_issues(output_html, issues, header, note_type):
             for issue in issues:
 
                 #Render hyperlinks
-                #jira_id = issue.jira_id
                 jira = issue_key_to_hyperlink(issue.jira_id)
                 output_html.write(tabs + "<tr>\n")
                 output_html.write(tabs + "\t<td>" + jira +"</td>\n")
