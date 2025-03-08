@@ -27,14 +27,85 @@ def render_to_html(output_location, version, previous_version, epics, stories, d
 
     output_html.close()
 
+def render_engineering_notes(output_location, version, previous_version, issues, git_log_command, git_log, jql, note_type):
+    """Render the content of engineering notes into a html file."""
+
+    with open(output_location, "w") as output_html:
+
+        render_header(output_html)
+
+        render_body(output_html, version, previous_version, note_type)
+        render_table_of_issues(output_html, issues, "Issues modified in this release", note_type)
+
+        # Render the git log
+        render_horizontal_line(output_html)
+        render_git_log(output_html, git_log_command, git_log)
+
+        # Render the JQL
+        render_horizontal_line(output_html)
+        render_jql(jql, output_html)
+
+        render_close_body(output_html)
+
+    output_html.close()
+
+def render_release_notes(output_location, version, previous_version, epics, stories, defects, support_issues, other, note_type):
+    """Render the content of various lists into a html file."""
+
+    with open(output_location, "w") as output_html:
+
+        render_header(output_html)
+
+        render_body(output_html, version, previous_version, note_type)
+        render_epics(output_html, epics, note_type)
+        render_stories(output_html, stories, "Minor enhancements made to device software", note_type)
+        render_defects(output_html, defects, "Defects resolved in device software", note_type)
+        render_support(output_html, support_issues, "Customer support issues resolved in device software", note_type)
+
+        #Render issues that are not suitable for release notes
+        render_horizontal_line(output_html)
+
+        render_close_body(output_html)
+
+    output_html.close()
+
+
 def render_horizontal_line(output):
     """Render a horizontal line to the html"""
-    output.write("<hr>")
+    output.write("\n\t\t\t\t<hr>\n")
+
+def render_git_log(output, git_log_command, git_log):
+    """Render the content of the git log string"""
+    tabs = '\t\t\t\t'
+    html = tabs + "<dt>Git Log</dt>\n" + tabs + "<br>\n" + tabs + git_log_command
+    formatted_git_log = tabs + "<pre>\n"
+
+    lines = git_log.split(sep='\n')
+    for line in lines:
+        formatted_git_log += line + "\n"
+
+    formatted_git_log += tabs + "</pre>"
+
+    html += formatted_git_log
+
+    output.write(html)
+
+def render_jql(jira_url, output):
+    """Render the content of a JQL query to html"""
+
+    tabs = '\t\t\t\t'
+    html = tabs + '<dt>Jira</dt>\n' + tabs + '<br>\n'
+    jira_hyperlink = '<a href="' + jira_url + '">' + 'Jira</a>\n'
+    html += 'Display the changed issues in ' + jira_hyperlink
+
+    output.write(html)
 
 def render_header(output):
     """Render the html header"""
 
     # Write the HTML Header
+
+    #TODO: update the title
 
     #TODO: Set the release notes title correctly
     html = """<html lang="en">
@@ -129,8 +200,10 @@ def render_close_body(output_html):
 def render_table_of_issues(output_html, issues, header, note_type):
     """Render the content of a table of issues to html"""
 
+    tabs = '\t\t\t\t'
+
     # Render a table of issues
-    output_html.write("<dt>" + header + "</dt>")
+    output_html.write(tabs + "<dt>" + header + "</dt>")
     output = """
                 <dd>
                     <table class="issues">
@@ -141,18 +214,20 @@ def render_table_of_issues(output_html, issues, header, note_type):
                         <tr>
                             <th>Issue Id</th>
                             <th>Summary</th>
-                        </tr>"""
+                        </tr>""" + '\n'
 
     output_html.write(output)
+
+    tabs += '\t\t'
 
     match note_type:
         case note_type.RELEASE_NOTE:
 
             for issue in issues:
-                    output_html.write("\t\t\t\t<tr>")
-                    output_html.write("\t\t\t\t\t<td>" + issue.jira_id +"</td>\n")
-                    output_html.write("\t\t\t\t\t<td>" + issue.release_note + "\n\t\t\t\t</td> \n")
-                    output_html.write("\t\t\t\t</tr>")
+                    output_html.write("\n" + tabs + "<tr>")
+                    output_html.write("\t<td>" + issue.jira_id +"</td>\n")
+                    output_html.write(tabs +"\t<td>" + issue.release_note + "</td>\n")
+                    output_html.write(tabs +"</tr>")
 
         case note_type.ENGINEERING_NOTE:
 
@@ -179,10 +254,10 @@ def render_table_of_issues(output_html, issues, header, note_type):
 
                     jira_id = '<a href="' + url + '">' + issue.jira_id + '</a>'
 
-                    output_html.write("\t\t\t\t<tr>")
-                    output_html.write("\t\t\t\t\t<td>" + jira_id +"</td>\n")
-                    output_html.write("\t\t\t\t\t<td>" + issue.git_comment + "\n\t\t\t\t</td> \n")
-                    output_html.write("\t\t\t\t</tr>")
+                    output_html.write(tabs + "<tr>\n")
+                    output_html.write(tabs + "\t<td>" + jira_id +"</td>\n")
+                    output_html.write(tabs + "\t<td>" + issue.git_comment + "</td> \n")
+                    output_html.write(tabs + "</tr>\n")
 
     closing_tags = """
                     </table>

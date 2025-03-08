@@ -1,11 +1,16 @@
+"""Release Note Generator - pull the git and jira data together to provide data for review,
+   and create release notes"""
+
 import csv
 import argparse
+import dataclasses
 
 from RenderToHTML import render_to_html
 from ParseGitLog import get_git_log
 
 from NoteType import ReleaseNoteType
 
+@dataclasses.dataclass
 class JiraExportQueryEntry:
     """Class to Ingest the content of a JQL query (for all issues in a release) from a CSV file"""
 
@@ -34,6 +39,7 @@ class JiraExportQueryEntry:
     def __str__(self):
         return self.issue_key + " " + self.issue_type + " " + self.summary
 
+@dataclasses.dataclass
 class ReleaseNoteDataImport:
     """Class to Import the modified content of the release notes for converting to HTML"""
 # CSV Header:
@@ -53,6 +59,7 @@ class ReleaseNoteDataImport:
     def __str__(self):
         return self.jira_id + " " + self.issue_type + " " + self.jira_comment + " " + self.actual_release_note
 
+@dataclasses.dataclass
 class ConsolidatedEntry:
     """Class to represent data that is consolidated between git and jira"""
     def __init__(self, jira_id, found_in_jira, found_in_git, jira_comment, issue_type, git_comment, release_note):
@@ -68,6 +75,7 @@ class ConsolidatedEntry:
         return self.found_in_jira + " " + self.found_in_git + " " + self.jira_comment + " " + self.issue_type + " " + self.git_comment + " " + self.release_note
 
 def main():
+    """pull git and jira data together to provide data for review, and to create release notes"""
 
     #
     #Parse the command line arguments
@@ -79,6 +87,7 @@ def main():
     parser.add_argument('-s','--source', type=str, help='Git tag of starting range to search in git', required=True)
     parser.add_argument('-d','--dest', type=str, help='Git tag of destination to search in git', required=True)
     parser.add_argument('-i','--input', type=str, help='Location of sanitised release notes to be render to HTML. This is a CSV file imported from Google Sheets.', required=True)
+    parser.add_argument('-v','--review', type=str, help='CSV file of data to be reviewed for release note content', required=True)
     parser.add_argument('-o','--output', type=str, help='HTML to render output to', required=True)
 
     args = parser.parse_args()
@@ -91,6 +100,7 @@ def main():
     repo = arguments['repo']
     output_file = arguments['output']
     sanitised_release_notes = arguments['input']
+    csv_file_for_review = arguments['review']
 
     jira_dictionary = {}
     consolidated_dictionary = {}
@@ -98,7 +108,7 @@ def main():
     #
     # import the data from a JQL query that has been exported from Jira to a CSV
     #
-    with open(jira_export_file, 'r') as input_csv_file:
+    with open(jira_export_file, 'r', encoding="utf-8") as input_csv_file:
 
         csv_reader = csv.DictReader(input_csv_file, delimiter="^")
 
@@ -110,7 +120,7 @@ def main():
             jira_dictionary[entry.issue_key] = entry
 
     #Fetch the content of a parsed git log
-    git_dictionary = get_git_log(repo_location, repo, source, dest)
+    git_dictionary, git_log_command, git_log = get_git_log(repo_location, repo, source, dest)
 
     #
     # Find all the issues that are listed in Jira, and cross reference these against the issues found in the Git commit(s)
@@ -125,7 +135,7 @@ def main():
             commit_message = git_dictionary[item]
 
             entry.found_in_git = "Yes"
-            entry.git_comment = commit_message.comment
+            entry.git_comment = commit_message
 
         consolidated_dictionary[item] = entry
 
@@ -133,26 +143,32 @@ def main():
     # Find all the issues that are in Git, and determine if we found them in jira dictionary
     #
     for item, entry in git_dictionary.items():
-        new_item = ConsolidatedEntry(item, "No", "Yes", "", "", entry.comment, "")
 
-        #Entries that appear in both the gitDictionary and the jiraDictaion
-        if item in jira_dictionary:
-            new_item.found_in_jira = "Yes"
-            new_item.jira_comment = jira_dictionary[item].summary
-            new_item.issue_type = jira_dictionary[item].issue_type
-            new_item.release_note = jira_dictionary[item].proposed_release_note
+        #Add each commit entry found by the key as a unique entry in the html table
+        for commit_messages in entry:
 
-        consolidated_dictionary[item] = new_item
+            new_item = ConsolidatedEntry(item, "No", "Yes", "", "", commit_messages.comment, "")
+
+            #Entries that appear in both the gitDictionary and the jiraDictaion
+            if item in jira_dictionary:
+                new_item.found_in_jira = "Yes"
+                new_item.jira_comment = jira_dictionary[item].summary
+                new_item.issue_type = jira_dictionary[item].issue_type
+                new_item.release_note = jira_dictionary[item].proposed_release_note
+
+            consolidated_dictionary[item] = new_item
 
     # Write all the consolidated data to a CSV file. This forms the basis of the release notes for review
-    with open('consolidated_database.csv', 'w', newline='') as csvfile:
+    with open(csv_file_for_review, 'w', encoding="utf-8", newline='') as csvfile:
         commit_writer = csv.writer(csvfile, delimiter=',')
         commit_writer.writerow(['JiraId', 'IssueType', 'InJira', 'InGit', 'Jira Comment', 'Git comment', 'ProposedReleaseNote'])
 
         for item, entry in consolidated_dictionary.items():
-
+            comments = ''
             #Write out the entry to the CSV file
-            commit_writer.writerow([item, entry.issue_type, entry.found_in_jira, entry.found_in_git, entry.jira_comment, entry.git_comment, entry.release_note])
+            for comment in entry.git_comment:
+                comments += comment + '\n'
+            commit_writer.writerow([item, entry.issue_type, entry.found_in_jira, entry.found_in_git, entry.jira_comment, comments, entry.release_note])
 
     #
     # Read in the sanitised CSV file that has been exported from a Google Sheet. This determines what is rendered to HTML
@@ -166,7 +182,7 @@ def main():
     support_issues = []
     other = []
 
-    with open(sanitised_release_notes, 'r') as exported_csv_file:
+    with open(sanitised_release_notes, 'r', encoding="utf-8") as exported_csv_file:
         csv_reader = csv.DictReader(exported_csv_file, delimiter="\t")
 
         #TODO handle errors when reading the CSV file
@@ -175,7 +191,7 @@ def main():
 
             entry = ReleaseNoteDataImport(**row)
 
-            if(entry.take == "Yes"):
+            if entry.take == "Yes":
                 consolidated_entry = ConsolidatedEntry(entry.jira_id,
                                                       entry.in_jira,
                                                       entry.in_git,
@@ -207,4 +223,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
