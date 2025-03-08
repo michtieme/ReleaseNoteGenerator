@@ -7,8 +7,6 @@ from render_to_html import render_engineering_notes
 from parse_git_log import get_git_log
 from issue_list_from_git_log import parse_jira_issues_from_git_log
 
-from NoteType import ReleaseNoteType
-
 @dataclasses.dataclass
 class ConsolidatedEntry:
     """Class to encapsulate git and jira data"""
@@ -64,7 +62,7 @@ def main():
     jql = parse_jira_issues_from_git_log(git_dictionary.keys(), blacklist)
 
     # Render the content to a HTML file
-    render_engineering_notes(output, source, destination, commits, git_log_command, git_log, jql, ReleaseNoteType.ENGINEERING_NOTE)
+    render_engineering_notes(output, source, destination, commits, git_log_command, git_log, jql)
 
 if __name__ == "__main__":
     main()

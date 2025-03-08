@@ -6,19 +6,48 @@
  <list of Support issues>
 """
 
+from NoteType import ReleaseNoteType
 
-def render_to_html(output_location, version, previous_version, epics, stories, defects, support_issues, other, note_type):
-    """Render the content of various lists into a html file."""
+def render_to_html(output_location, version, previous_version, commits):
+    """Render the content of a commit list into a html file."""
+
+    epics = []
+    defects = []
+    stories = []
+    spikes = []
+    subtasks = []
+    dependencies = []
+    support_issues = []
+    other = []
+
+    for entry in commits:
+        match entry.issue_type:
+            case "Defect":
+                defects.append(entry)
+            case "Epic":
+                epics.append(entry)
+            case "Story":
+                stories.append(entry)
+            case "Sub-task":
+                subtasks.append(entry)
+            case "Dependency":
+                dependencies.append(entry)
+            case "Support":
+                support_issues.append(entry)
+            case "Spike":
+                spikes.append(entry)
+            case _:
+                other.append(entry)
 
     with open(output_location, "w") as output_html:
 
         render_header(output_html)
 
-        render_body(output_html, version, previous_version, note_type)
-        render_epics(output_html, epics, note_type)
-        render_stories(output_html, stories, "Minor enhancements made to device software", note_type)
-        render_defects(output_html, defects, "Defects resolved in device software", note_type)
-        render_support(output_html, support_issues, "Customer support issues resolved in device software", note_type)
+        render_body(output_html, version, previous_version, ReleaseNoteType.RELEASE_NOTE)
+        render_epics(output_html, epics, ReleaseNoteType.RELEASE_NOTE)
+        render_stories(output_html, stories, "Minor enhancements made to device software", ReleaseNoteType.RELEASE_NOTE)
+        render_defects(output_html, defects, "Defects resolved in device software", ReleaseNoteType.RELEASE_NOTE)
+        render_support(output_html, support_issues, "Customer support issues resolved in device software", ReleaseNoteType.RELEASE_NOTE)
 
         #Render issues that are not suitable for release notes
         render_horizontal_line(output_html)
@@ -27,15 +56,15 @@ def render_to_html(output_location, version, previous_version, epics, stories, d
 
     output_html.close()
 
-def render_engineering_notes(output_location, version, previous_version, issues, git_log_command, git_log, jql, note_type):
+def render_engineering_notes(output_location, version, previous_version, issues, git_log_command, git_log, jql):
     """Render the content of engineering notes into a html file."""
 
     with open(output_location, "w") as output_html:
 
         render_header(output_html)
 
-        render_body(output_html, version, previous_version, note_type)
-        render_table_of_issues(output_html, issues, "Issues modified in this release", note_type)
+        render_body(output_html, version, previous_version, ReleaseNoteType.ENGINEERING_NOTE)
+        render_table_of_issues(output_html, issues, "Issues modified in this release", ReleaseNoteType.ENGINEERING_NOTE)
 
         # Render the git log
         render_horizontal_line(output_html)

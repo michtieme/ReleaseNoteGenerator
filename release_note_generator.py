@@ -8,8 +8,6 @@ import dataclasses
 from render_to_html import render_to_html
 from parse_git_log import get_git_log
 
-from NoteType import ReleaseNoteType
-
 @dataclasses.dataclass
 class JiraExportQueryEntry:
     """Class to Ingest the content of a JQL query (for all issues in a release) from a CSV file"""
@@ -173,17 +171,10 @@ def main():
     #
     # Read in the sanitised CSV file that has been exported from a Google Sheet. This determines what is rendered to HTML
     #
-    epics = []
-    defects = []
-    stories = []
-    spikes = []
-    subtasks = []
-    dependencies = []
-    support_issues = []
-    other = []
-
     with open(sanitised_release_notes, 'r', encoding="utf-8") as exported_csv_file:
         csv_reader = csv.DictReader(exported_csv_file, delimiter="\t")
+
+        commits = []
 
         #TODO handle errors when reading the CSV file
 
@@ -199,27 +190,10 @@ def main():
                                                       entry.issue_type,
                                                       entry.git_comment,
                                                       entry.actual_release_note)
-
-                match entry.issue_type:
-                    case "Defect":
-                        defects.append(consolidated_entry)
-                    case "Epic":
-                        epics.append(consolidated_entry)
-                    case "Story":
-                        stories.append(consolidated_entry)
-                    case "Sub-task":
-                        subtasks.append(consolidated_entry)
-                    case "Dependency":
-                        dependencies.append(consolidated_entry)
-                    case "Support":
-                        support_issues.append(consolidated_entry)
-                    case "Spike":
-                        spikes.append(consolidated_entry)
-                    case _:
-                        other.append(consolidated_entry)
+                commits.append(consolidated_entry)
 
     # Render the content to a HTML file
-    render_to_html(output_file, dest, source, epics, stories, defects, support_issues, other, ReleaseNoteType.RELEASE_NOTE)
+    render_to_html(output_file, dest, source, commits)
 
 if __name__ == "__main__":
     main()
