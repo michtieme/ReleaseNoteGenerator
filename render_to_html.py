@@ -7,6 +7,7 @@
 """
 
 from NoteType import ReleaseNoteType
+from helpers import issue_key_to_hyperlink
 
 def render_to_html(output_location, version, previous_version, commits):
     """Render the content of a commit list into a html file."""
@@ -207,7 +208,7 @@ def render_body(html, version, previous_version, note_type):
     since = "<h3>Changes since " + previous_version + "</h3>" + """
             <dl>\n"""
 
-    if(note_type == note_type.RELEASE_NOTE):
+    if note_type == note_type.RELEASE_NOTE:
         content = html_body + next + software_version + tail + since
     else:
         content = html_body + next + software_version + since
@@ -253,40 +254,22 @@ def render_table_of_issues(output_html, issues, header, note_type):
         case note_type.RELEASE_NOTE:
 
             for issue in issues:
-                    output_html.write("\n" + tabs + "<tr>")
-                    output_html.write("\t<td>" + issue.jira_id +"</td>\n")
-                    output_html.write(tabs +"\t<td>" + issue.release_note + "</td>\n")
-                    output_html.write(tabs +"</tr>")
+                output_html.write("\n" + tabs + "<tr>")
+                output_html.write("\t<td>" + issue.jira_id +"</td>\n")
+                output_html.write(tabs +"\t<td>" + issue.release_note + "</td>\n")
+                output_html.write(tabs +"</tr>")
 
         case note_type.ENGINEERING_NOTE:
 
             for issue in issues:
 
-                    #Render hyperlinks
-                    jira_id = issue.jira_id
-                    dash_location = -1
-                    url = ""
-
-                    # AZMV issues are in AZDO
-                    if(jira_id.startswith(("AZMV", "azmv"))):
-
-                       dash_location = jira_id.find('-')
-                       length = len(jira_id)
-
-                       if(dash_location != -1):
-                            azdo_id = jira_id[dash_location+1:length]
-                            url = 'https://dev.azure.com/MobileVideo/VideoManager/_workitems/edit/' + azdo_id
-
-                    else:
-                        # Assume the issue is a Jira instead
-                        url = "https://jira.mot-solutions.com/browse/" + jira_id
-
-                    jira_id = '<a href="' + url + '">' + issue.jira_id + '</a>'
-
-                    output_html.write(tabs + "<tr>\n")
-                    output_html.write(tabs + "\t<td>" + jira_id +"</td>\n")
-                    output_html.write(tabs + "\t<td>" + issue.git_comment + "</td> \n")
-                    output_html.write(tabs + "</tr>\n")
+                #Render hyperlinks
+                #jira_id = issue.jira_id
+                jira = issue_key_to_hyperlink(issue.jira_id)
+                output_html.write(tabs + "<tr>\n")
+                output_html.write(tabs + "\t<td>" + jira +"</td>\n")
+                output_html.write(tabs + "\t<td>" + issue.git_comment + "</td> \n")
+                output_html.write(tabs + "</tr>\n")
 
     closing_tags = """
                     </table>
@@ -297,8 +280,8 @@ def render_table_of_issues(output_html, issues, header, note_type):
 def render_epics(output_html, epics, note_type):
     """Render a list of epics"""
     for epic in epics:
-            output_html.write("\t\t\t\t<dt>New Feature: " + epic.jira_comment +"</dt> \n")
-            output_html.write("\t\t\t\t<dd>\n\t\t\t\t\t" + epic.release_note + "\n\t\t\t\t</dd> \n")
+        output_html.write("\t\t\t\t<dt>New Feature: " + epic.jira_comment +"</dt> \n")
+        output_html.write("\t\t\t\t<dd>\n\t\t\t\t\t" + epic.release_note + "\n\t\t\t\t</dd> \n")
 
 def render_stories(output_html, stories, description, note_type):
     """Render a list of stories to html"""
