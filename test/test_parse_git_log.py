@@ -1,6 +1,6 @@
-from ParseGitLog import trim_excess_prefix_characters
-from ParseGitLog import split_commit_message
-from ParseGitLog import GitCommitMessage
+from parse_git_log import trim_excess_prefix_characters
+from parse_git_log import split_commit_message
+from parse_git_log import GitCommitMessage
 
 def test_trim_single_comma():
     assert trim_excess_prefix_characters(",abcdef") == "abcdef"
