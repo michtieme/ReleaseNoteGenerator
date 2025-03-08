@@ -8,7 +8,7 @@
 import argparse
 import webbrowser
 
-from ParseGitLog import get_git_log
+from parse_git_log import get_git_log
 
 def main():
 

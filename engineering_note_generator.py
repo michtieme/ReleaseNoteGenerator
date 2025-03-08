@@ -3,8 +3,8 @@
 import argparse
 import dataclasses
 
-from RenderToHTML import render_engineering_notes
-from ParseGitLog import get_git_log
+from render_to_html import render_engineering_notes
+from parse_git_log import get_git_log
 from issue_list_from_git_log import parse_jira_issues_from_git_log
 
 from NoteType import ReleaseNoteType
