@@ -6,19 +6,49 @@
  <list of Support issues>
 """
 
+from NoteType import ReleaseNoteType
+from helpers import issue_key_to_hyperlink
 
-def render_to_html(output_location, version, previous_version, epics, stories, defects, support_issues, other, note_type):
-    """Render the content of various lists into a html file."""
+def render_to_html(output_location, version, previous_version, commits):
+    """Render the content of a commit list into a html file."""
+
+    epics = []
+    defects = []
+    stories = []
+    spikes = []
+    subtasks = []
+    dependencies = []
+    support_issues = []
+    other = []
+
+    for entry in commits:
+        match entry.issue_type:
+            case "Defect":
+                defects.append(entry)
+            case "Epic":
+                epics.append(entry)
+            case "Story":
+                stories.append(entry)
+            case "Sub-task":
+                subtasks.append(entry)
+            case "Dependency":
+                dependencies.append(entry)
+            case "Support":
+                support_issues.append(entry)
+            case "Spike":
+                spikes.append(entry)
+            case _:
+                other.append(entry)
 
     with open(output_location, "w") as output_html:
 
         render_header(output_html)
 
-        render_body(output_html, version, previous_version, note_type)
-        render_epics(output_html, epics, note_type)
-        render_stories(output_html, stories, "Minor enhancements made to device software", note_type)
-        render_defects(output_html, defects, "Defects resolved in device software", note_type)
-        render_support(output_html, support_issues, "Customer support issues resolved in device software", note_type)
+        render_body(output_html, version, previous_version, ReleaseNoteType.RELEASE_NOTE)
+        render_epics(output_html, epics, ReleaseNoteType.RELEASE_NOTE)
+        render_stories(output_html, stories, "Minor enhancements made to device software", ReleaseNoteType.RELEASE_NOTE)
+        render_defects(output_html, defects, "Defects resolved in device software", ReleaseNoteType.RELEASE_NOTE)
+        render_support(output_html, support_issues, "Customer support issues resolved in device software", ReleaseNoteType.RELEASE_NOTE)
 
         #Render issues that are not suitable for release notes
         render_horizontal_line(output_html)
@@ -27,15 +57,15 @@ def render_to_html(output_location, version, previous_version, epics, stories, d
 
     output_html.close()
 
-def render_engineering_notes(output_location, version, previous_version, issues, git_log_command, git_log, jql, note_type):
+def render_engineering_notes(output_location, version, previous_version, issues, git_log_command, git_log, jql):
     """Render the content of engineering notes into a html file."""
 
     with open(output_location, "w") as output_html:
 
         render_header(output_html)
 
-        render_body(output_html, version, previous_version, note_type)
-        render_table_of_issues(output_html, issues, "Issues modified in this release", note_type)
+        render_body(output_html, version, previous_version, ReleaseNoteType.ENGINEERING_NOTE)
+        render_table_of_issues(output_html, issues, "Issues modified in this release", ReleaseNoteType.ENGINEERING_NOTE)
 
         # Render the git log
         render_horizontal_line(output_html)
@@ -178,7 +208,7 @@ def render_body(html, version, previous_version, note_type):
     since = "<h3>Changes since " + previous_version + "</h3>" + """
             <dl>\n"""
 
-    if(note_type == note_type.RELEASE_NOTE):
+    if note_type == note_type.RELEASE_NOTE:
         content = html_body + next + software_version + tail + since
     else:
         content = html_body + next + software_version + since
@@ -224,40 +254,21 @@ def render_table_of_issues(output_html, issues, header, note_type):
         case note_type.RELEASE_NOTE:
 
             for issue in issues:
-                    output_html.write("\n" + tabs + "<tr>")
-                    output_html.write("\t<td>" + issue.jira_id +"</td>\n")
-                    output_html.write(tabs +"\t<td>" + issue.release_note + "</td>\n")
-                    output_html.write(tabs +"</tr>")
+                output_html.write("\n" + tabs + "<tr>")
+                output_html.write("\t<td>" + issue.jira_id +"</td>\n")
+                output_html.write(tabs +"\t<td>" + issue.release_note + "</td>\n")
+                output_html.write(tabs +"</tr>")
 
         case note_type.ENGINEERING_NOTE:
 
             for issue in issues:
 
-                    #Render hyperlinks
-                    jira_id = issue.jira_id
-                    dash_location = -1
-                    url = ""
-
-                    # AZMV issues are in AZDO
-                    if(jira_id.startswith(("AZMV", "azmv"))):
-
-                       dash_location = jira_id.find('-')
-                       length = len(jira_id)
-
-                       if(dash_location != -1):
-                            azdo_id = jira_id[dash_location+1:length]
-                            url = 'https://dev.azure.com/MobileVideo/VideoManager/_workitems/edit/' + azdo_id
-
-                    else:
-                        # Assume the issue is a Jira instead
-                        url = "https://jira.mot-solutions.com/browse/" + jira_id
-
-                    jira_id = '<a href="' + url + '">' + issue.jira_id + '</a>'
-
-                    output_html.write(tabs + "<tr>\n")
-                    output_html.write(tabs + "\t<td>" + jira_id +"</td>\n")
-                    output_html.write(tabs + "\t<td>" + issue.git_comment + "</td> \n")
-                    output_html.write(tabs + "</tr>\n")
+                #Render hyperlinks
+                jira = issue_key_to_hyperlink(issue.jira_id)
+                output_html.write(tabs + "<tr>\n")
+                output_html.write(tabs + "\t<td>" + jira +"</td>\n")
+                output_html.write(tabs + "\t<td>" + issue.git_comment + "</td> \n")
+                output_html.write(tabs + "</tr>\n")
 
     closing_tags = """
                     </table>
@@ -268,8 +279,8 @@ def render_table_of_issues(output_html, issues, header, note_type):
 def render_epics(output_html, epics, note_type):
     """Render a list of epics"""
     for epic in epics:
-            output_html.write("\t\t\t\t<dt>New Feature: " + epic.jira_comment +"</dt> \n")
-            output_html.write("\t\t\t\t<dd>\n\t\t\t\t\t" + epic.release_note + "\n\t\t\t\t</dd> \n")
+        output_html.write("\t\t\t\t<dt>New Feature: " + epic.jira_comment +"</dt> \n")
+        output_html.write("\t\t\t\t<dd>\n\t\t\t\t\t" + epic.release_note + "\n\t\t\t\t</dd> \n")
 
 def render_stories(output_html, stories, description, note_type):
     """Render a list of stories to html"""
