@@ -5,8 +5,8 @@ import csv
 import argparse
 import dataclasses
 
-from RenderToHTML import render_to_html
-from ParseGitLog import get_git_log
+from render_to_html import render_to_html
+from parse_git_log import get_git_log
 
 from NoteType import ReleaseNoteType
 
